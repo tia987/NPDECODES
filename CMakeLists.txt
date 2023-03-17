@@ -42,10 +42,10 @@ endif()
 option(HOMEWORKS "usage: cmake -DHOMEWORKS=ON/OFF .." ON)
 message(STATUS "HOMEWORKS ${HOMEWORKS}")
 
-option(DEVELOPERS "usage: cmake -DDEVELOPERS=ON/OFF .." ON)
+option(DEVELOPERS "usage: cmake -DDEVELOPERS=ON/OFF .." OFF)
 message(STATUS "DEVELOPERS ${DEVELOPERS}")
 
-option(LECTURECODES "usage: cmake -DLECTURECODES=ON/OFF .." ON)
+option(LECTURECODES "usage: cmake -DLECTURECODES=ON/OFF .." OFF)
 message(STATUS "LECTURECODES ${LECTURECODES}")
 
 option(MASTERSOLUTION "usage: cmake -DMASTERSOLUTION=ON/OFF .." ON)

@@ -9,6 +9,7 @@
 #include "transformationofgalerkinmatrices.h"
 
 #include <cassert>
+#include <iostream>
 
 namespace TransformationOfGalerkinMatrices {
 
@@ -39,6 +40,33 @@ std::vector<Eigen::Triplet<double>> transformCOOmatrix(
   //====================
   // Your code goes here
   //====================
+  Eigen::SparseMatrix<double> m(N,N);
+  m.setFromTriplets(A.begin(), A.end());
+  for (size_t i = 1; i < N; i++){
+    for (size_t j = 1; j < N; j++){    
+      if(i < M && j < M){
+        double t = m.coeff(2*i,2*j)+m.coeff(2*i,2*j-1)+m.coeff(2*i-1,2*j)+m.coeff(2*i-1,2*j-1);
+        Eigen::Triplet<double> trip(i,j,t);
+        A_t.push_back(trip);
+      }
+      else if(M < i && i < N && M < j && j < N){        
+        auto t = m.coeff(2*(i-M)-1,2*(j-M)-1)+m.coeff(2*(i-M)-1,2*(j-M))-m.coeff(2*(i-M),2*(j-M)-1)+m.coeff(2*(i-M),2*(j-M));
+        Eigen::Triplet<double> trip(i,j,t);
+        A_t.push_back(trip);
+      }
+      else if(M < i && i < N && 0 < j && j < M){
+        auto t = m.coeff(2*(i-M)-1,2*j-1)+m.coeff(2*(i-M)-1,2*j)-m.coeff(2*(i-M),2*j-1)-m.coeff(2*(i-M),2*j);
+        Eigen::Triplet<double> trip(i,j,t);
+        A_t.push_back(trip);
+      }
+      else if(0 < i && i < M && M < j && j < N){
+        auto t = m.coeff(2*i-1,2*(j-M)-1)-m.coeff(2*i-1,2*(j-M))+m.coeff(2*i,2*(j-M)-1)-m.coeff(2*i,2*(j-M));
+        Eigen::Triplet<double> trip(i,j,t);
+        A_t.push_back(trip);
+      }
+    }
+  }
+
   return A_t;
 }
 /* SAM_LISTING_END_1 */

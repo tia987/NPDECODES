@@ -29,9 +29,23 @@ std::vector<Eigen::Triplet<double>> computeA(const Eigen::VectorXd &mesh,
   std::vector<Eigen::Triplet<double>> triplets;
   triplets.reserve(3 * N + 1);
 
-  //====================
-  // Your code goes here
-  //====================
+  double t1 = mesh(1)-mesh(0);
+  double t2;
+  triplets.push_back(Eigen::Triplet<double>(0,0,alpha((mesh(1)+mesh(0))*0.5)/t1));
+
+  for(int i = 1; i < N; i++){
+    t1 = mesh(i)-mesh(i-1);
+    t2 = mesh(i+1)-mesh(i);
+    triplets.push_back(Eigen::Triplet<double> (i,i,alpha((mesh(i-1)+mesh(i))*0.5)/t1+alpha((mesh(i)+mesh(i+1))*0.5)/t2));
+  }
+  for(int i = 0; i < N; i++){
+    t2 = mesh(i+1)-mesh(i);
+    triplets.push_back(Eigen::Triplet<double>(i+1,i,-alpha((mesh(i)+mesh(i+1))*0.5)/t2));
+    triplets.push_back(Eigen::Triplet<double>(i,i+1,-alpha((mesh(i)+mesh(i+1))*0.5)/t2));
+  }
+
+  t1 = mesh(N)-mesh(N-1);
+  triplets.push_back(Eigen::Triplet<double>(N,N,alpha((mesh(N)+mesh(N-1))*0.5)/t1));
 
   return triplets;
 }  // computeA
@@ -54,9 +68,12 @@ std::vector<Eigen::Triplet<double>> computeM(const Eigen::VectorXd &mesh,
   std::vector<Eigen::Triplet<double>> triplets;
   triplets.reserve(N + 1);
 
-  //====================
-  // Your code goes here
-  //====================
+  triplets.push_back(Eigen::Triplet<double>(0,0,0.5*gamma(mesh(0))*(mesh(1)-mesh(0))));
+  triplets.push_back(Eigen::Triplet<double>(N,N,0.5*gamma(mesh(N))*(mesh(N)-mesh(N-1))));
+  for(int i = 1; i < N; i++){
+    double t1 = mesh(i+1)-mesh(i-1);
+    triplets.push_back(Eigen::Triplet<double>(i,i,t1*0.5*gamma(mesh(i))));
+  }
 
   return triplets;
 }  // computeM
@@ -72,9 +89,12 @@ Eigen::VectorXd computeRHS(const Eigen::VectorXd &mesh, FUNCTOR1 &&f) {
   // Initializing right hand side vector
   Eigen::VectorXd rhs_vec = Eigen::VectorXd::Zero(N + 1);
 
-  //====================
-  // Your code goes here
-  //====================
+  rhs_vec(0) = 0.5*f(mesh(0))*(mesh(1)-mesh(0));
+  rhs_vec(N) = 0.5*f(mesh(N))*(mesh(N)-mesh(N-1));
+  for (size_t i = 1; i < N; i++){
+    double t = mesh(i+1)-mesh(i-1);
+    rhs_vec(i) = 0.5*f(mesh(i))*t;
+  }
 
   return rhs_vec;
 }  // computeRHS
@@ -87,6 +107,11 @@ Eigen::VectorXd solveA(const Eigen::VectorXd &mesh, FUNCTOR1 &&gamma,
                        FUNCTOR2 &&f) {
   // Nodes are indexed as 0=x_0 < x_1 < ... < x_N = 1
   unsigned N = mesh.size() - 1;
+
+
+  // No need to correct
+
+
   // Initializations (notice initialization with zeros here)
   Eigen::VectorXd u = Eigen::VectorXd::Zero(N + 1);  // solution vec
   Eigen::SparseMatrix<double> A(N + 1, N + 1);       // laplacian galerkin mat
@@ -94,24 +119,23 @@ Eigen::VectorXd solveA(const Eigen::VectorXd &mesh, FUNCTOR1 &&gamma,
   Eigen::SparseMatrix<double> L(N + 1, N + 1);       // full galerkin mat
 
   // I. Build the (full) Galerkin matrix L for the lin. sys.
-  //====================
-  // Your code goes here
-  //====================
+  auto t = computeA(mesh,[](double)->double{return 1.0;});
+  A.setFromTriplets(t.begin(),t.end());
+  t = computeM(mesh,gamma);
+  M.setFromTriplets(t.begin(),t.end());
+  L = A+M;
 
   // II. Build the right hand side source vector
-  //====================
-  // Your code goes here
-  //====================
+  Eigen::VectorXd RHS = computeRHS(mesh,f);
 
   // III. Enforce (zero) dirichlet boundary conditions
-  //====================
-  // Your code goes here
-  //====================
+  // We can cut out the boundaries of the matrix and vector
+  L = L.block(1,1,N-1,N-1);
+  RHS = RHS.segment(1,N-1);
 
   // IV. Solve the LSE L*u = rhs_vec using an Eigen solver
-  //====================
-  // Your code goes here
-  //====================
+  Eigen::SimplicialLLT<Eigen::SparseMatrix<double>, Eigen::Lower> solver;
+  u.segment(1,N-1) = solver.compute(L).solve(RHS);
 
   // The solution vector u was initialized with zeros, and therefore already
   // contains the zero Dirichlet boundary data in the first and last entry
@@ -133,24 +157,19 @@ Eigen::VectorXd solveB(const Eigen::VectorXd &mesh, FUNCTOR1 &&alpha,
   double dx_left, dx_right;  // cell widths
 
   // I. Build the Galerkin matrix A
-  //====================
-  // Your code goes here
-  //====================
+  auto t = computeA(mesh,alpha);
+  A.setFromTriplets(t.begin(),t.end());  
 
-  // II. Build the right hand side source vector
-  //====================
-  // Your code goes here
-  //====================
+  // II. Build the right hand side source vector  
+  Eigen::VectorXd RHS = computeRHS(mesh,f);
 
   // III. Enforce dirichlet boundary conditions
-  //====================
-  // Your code goes here
-  //====================
+  A = A.block(1,1,N-1,N-1);
+  RHS = RHS.segment(1,N-1);
 
   // IV. Solve the LSE A*u = rhs_vec using an Eigen solver
-  //====================
-  // Your code goes here
-  //====================
+  Eigen::SimplicialLLT<Eigen::SparseMatrix<double>, Eigen::Lower> solver;
+  u.segment(1,N-1) = solver.compute(A).solve(RHS);
 
   // The solution vector still needs to be supplemented with the known
   // boundary values
@@ -174,19 +193,21 @@ Eigen::VectorXd solveC(const Eigen::VectorXd &mesh, FUNCTOR1 &&alpha,
   Eigen::SparseMatrix<double> L(N + 1, N + 1);  // full galerkin mat
 
   // I. Build the (full) Galerkin matrix L for the lin. sys.
-  //====================
-  // Your code goes here
-  //====================
+  auto t = computeA(mesh,alpha);
+  A.setFromTriplets(t.begin(),t.end());
+  t = computeM(mesh,gamma);
+  M.setFromTriplets(t.begin(),t.end());
+  L = A+M;
 
   // II. Build the right hand side source vector
-  //====================
-  // Your code goes here
-  //====================
+  //
+  // why in this case we need to set [](double)->double{return 1.0;}?
+  //
+  Eigen::VectorXd RHS = computeRHS(mesh,[](double)->double{return 1.0;});
 
   // IV. Solve the LSE A*u = rhs_vec using an Eigen solver
-  //====================
-  // Your code goes here
-  //====================
+  Eigen::SimplicialLLT<Eigen::SparseMatrix<double>, Eigen::Lower> solver;
+  u = solver.compute(L).solve(RHS);
 
   return u;
 }  // solveC

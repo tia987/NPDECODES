@@ -45,9 +45,13 @@ Eigen::Matrix<double, 2, 3> gradbarycoordinates(const TriGeo_t &vertices) {
 /* SAM_LISTING_BEGIN_1 */
 Eigen::Matrix3d ElementMatrix_Mass_LFE(const TriGeo_t &V) {
   Eigen::Matrix3d element_matrix;
-  //====================
-  // Your code goes here
-  //====================
+  for(size_t i = 0; i < 3; i++){
+    for(size_t j = 0; j < 3; j++){
+      if(i == j) element_matrix(i,j) = 2;
+      else element_matrix(i,j) = 1;
+    }
+  }
+  element_matrix = element_matrix*getArea(V)/12.;
   return element_matrix;
 }
 /* SAM_LISTING_END_1 */
@@ -171,9 +175,24 @@ double H1Serror(
     const std::function<Eigen::Vector2d(const Eigen::Vector2d &)> exact) {
   double H1Serror_squared = 0.0;
   //====================
-  // Your code goes here
-  //====================
+  for (size_t i = 0; i < mesh._elements.rows(); i++){
+    TriGeo_t K = mesh.getVtCoords(i);
+    
+    // QUESTION: This calculates the gradient
+    // At the coordinates at K, right?
+    Eigen::Vector3d values_at_vertices;
+    for(int k = 0; k < 3; ++k) {
+      values_at_vertices(k) = uFEM[mesh._elements(i , k) ];
+    }
+    Eigen::Vector2d grad = gradbarycoordinates(K)*values_at_vertices;
 
+    Eigen::Vector3d U;
+    for (size_t j = 0; j < 3; j++){      
+      U(j) = (exact(K.col(j))-grad).squaredNorm();
+    }
+    H1Serror_squared += 1/3.*getArea(K)*(U(0)+U(1)+U(2)); 
+  }
+  //====================
   return std::sqrt(H1Serror_squared);
 }
 /* SAM_LISTING_END_3 */
@@ -205,10 +224,35 @@ std::tuple<Eigen::VectorXd, double, double> Solve(
 
   //====================
   // Your code goes here
+  /*
   // Assigning some dummy values
   U = Eigen::VectorXd::Zero(mesh._nodecoords.rows());
   l2error = 1.0;
+  */
   h1error = 1.0;
+  U = Eigen::VectorXd::Zero(mesh._nodecoords.rows());
+    
+  // Case for L2 error
+  // First we assemble the Galerkin matrix
+  Eigen::SparseMatrix<double> A = assembleGalMatLFE(mesh,getElementMatrix);
+  // Set the matrix solver
+  Eigen::SparseLU<Eigen::SparseMatrix<double>,Eigen::COLAMDOrdering<int>> solver;
+  solver.analyzePattern(A);
+  solver.factorize(A);
+  // Solve for U and return the error
+  U = solver.solve(assemLoad_LFE(mesh,localLoadLFE,f));
+  l2error = L2Error(mesh,U,uExact);
+
+  // Case for H1 error
+  // We need only to compute the gradient of uExact
+  auto grad = [pi](Eigen::Vector2d x){
+    double PI = 2*pi;
+    Eigen::Vector2d t;
+    t << -PI*std::sin(PI*x(0))*std::cos(PI*x(1)),-PI*std::cos(PI*x(0))*std::sin(PI*x(1));
+    return t;
+  };
+
+  h1error = H1Serror(mesh,U,grad);
   //====================
   return std::make_tuple(U, l2error, h1error);
 }

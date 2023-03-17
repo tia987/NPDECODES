@@ -104,19 +104,15 @@ Eigen::VectorXd solveReactionDiffusion() {
     auto fe_space =
         std::make_shared<lf::uscalfe::FeSpaceLagrangeO1<double>>(mesh_p);
     // TODO: 1.1 Get a const reference to the mesh *from the fe_space variable*.
-    const lf::mesh::Mesh &mesh{*fe_space->Mesh()};
-    
+//    const lf::mesh::Mesh &mesh
 
     // TODO: 1.2 Get the dof handler of the finite element space.
-    const lf::assemble::DofHandler &dofh{fe_space->LocGlobMap()};
-
+//    const lf::assemble::DofHandler &dofh
 
     // TODO: 1.3 Get the dimension of the finite element space.
 //    const lf::base::size_type N_dofs
-    const lf::base::size_type N_dofs(dofh.NumDofs());
 
     // TODO 2.1: Replace the element matrix provider with a lehrfem++ implementation
-
 
     // TODO 2.1.1.: Create an ReactionDiffusionElementMatrixProvider
     //  corresponding to the element matrix of the bilinear form
@@ -141,20 +137,20 @@ Eigen::VectorXd solveReactionDiffusion() {
     for (const lf::mesh::Entity* triangle : mesh.Entities(0)) {
         // TODO 1.4: Get the corners of the triangle
         // Hint: look at the geometry::Corners function.
-        Eigen::MatrixXd corners = lf::geometry::Corners(*(triangle->Geometry()));
+        Eigen::MatrixXd corners;
+
         Eigen::Matrix3d A_k = getElementMatrix(corners);
 
         // TODO 2.1.2. Comment 1.4 and use your new element matrix provider
         //  to get the element matrix. Test your code once you're done !
 
         // TODO 1.5: Get the local to global indexing map for this triangle
-        auto dof_array = dofh.GlobalDofIndices(*triangle);
+//        auto dof_array =
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 3; j++) {
                 // TODO 1.6: emplace back to the triplets vector
                 // The correspondent entry of the local element matrix
                 // A(global_i, global_j) += A_k(i,j)
-                triplets.emplace_back(dof_array[i],dof_array[j], A_k(i,j));
             }
         }
     }
@@ -186,12 +182,11 @@ Eigen::VectorXd solveReactionDiffusion() {
 
     for (const lf::mesh::Entity* triangle : mesh.Entities(0)) {
         // TODO 1.7: Get the corners of the triangle
-        Eigen::MatrixXd corners = lf::geometry::Corners(*(triangle->Geometry()));
 
         Eigen::VectorXd phi_k = getElementVector(corners, f);
 
         // TODO 1.8: Get the local to global indexing map for this triangle
-        auto dof_array = ;
+//        auto dof_array =
         for (int i = 0; i < 3; i++) {
             // TODO 1.9: phi(global_i) = phi_k(i)
         }
