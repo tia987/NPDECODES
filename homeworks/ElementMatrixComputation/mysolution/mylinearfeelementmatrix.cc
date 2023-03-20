@@ -32,7 +32,38 @@ Eigen::Matrix<double, 4, 4> MyLinearFEElementMatrix::Eval(
   Eigen::Matrix<double, 4, 4> elem_mat;
 
   //====================
-  // Your code goes here
+  // First we need to specify which case we have to compute
+  // through the kind of ref_el      
+  switch(ref_el){
+    //case ref_el.kTria():{
+    case lf::base::RefEl::kTria():{
+      // Triangle
+      // Calculate area for triangle
+      double K = ((vertices(0,1)-vertices(0,0))*(vertices(1,2)-vertices(1,0))-(vertices(1,1)-vertices(1,0))*(vertices(0,2)-vertices(0,0)))/2.; 
+      // Setup matrix (Need to be 4x4 given the laplace_elmat_builder)
+      elem_mat << 2,1,1,0,
+                  1,2,1,0,
+                  1,1,2,0,
+                  0,0,0,0;
+      elem_mat = elem_mat*K/12.;   
+      break; 
+    }
+
+    case lf::base::RefEl::kQuad():{
+      // square
+      // Calculate area for square
+      double K = (vertices(0,1)-vertices(0,0))*(vertices(1,3)-vertices(1,0)); 
+      elem_mat << 4,2,1,2,
+                  2,4,2,1,
+                  1,2,4,2,
+                  2,1,2,4;
+      elem_mat = elem_mat*K/36.;
+      break;    
+    }
+  }
+  lf::uscalfe::LinearFELaplaceElementMatrix laplace_elmat_builder;
+  auto lap_elem_mat = laplace_elmat_builder.Eval(cell);
+  elem_mat += lap_elem_mat;
   //====================
 
   return elem_mat;

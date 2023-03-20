@@ -73,7 +73,10 @@ Eigen::VectorXd solve(ELMAT_PROVIDER &elmat_provider,
   Eigen::VectorXd sol_vec = Eigen::VectorXd::Zero(N_dofs);
 
   //====================
-  // Your code goes here
+  Eigen::SparseLU<Eigen::SparseMatrix<double>,Eigen::COLAMDOrdering<int>> solver;
+  solver.analyzePattern(A_crs);
+  solver.factorize(A_crs);
+  sol_vec = solver.solve(phi);
   //====================
   /* SAM_LISTING_END_1 */
 
