@@ -33,7 +33,13 @@ int main() {
 
 // TODO: task 2-14.h)
     //====================
-    // Your code goes here
+    // Set dofh from the initialization of 2.7.4.16 with kSegment = 1 
+    // given that we consider only the basis on the segments 
+    lf::assemble::UniformFEDofHandler dofh(mesh_p,  
+                 {{lf::base::RefEl::kPoint(), 0},
+                  {lf::base::RefEl::kSegment(), 1},
+                  {lf::base::RefEl::kTria(), 0},
+                  {lf::base::RefEl::kQuad(), 0}});
     //====================
 
 // TODO: task 2-14.y)

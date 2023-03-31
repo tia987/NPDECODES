@@ -11,10 +11,10 @@ namespace NonConformingCrouzeixRaviartFiniteElements {
 /* SAM_LISTING_BEGIN_1 */
 lf::base::RefEl CRReferenceFiniteElement::RefEl() const {
   lf::base::RefElType ref_el_type;
-// TODO: task 2-14.q)
-//====================
-// Your code goes here
-//====================
+  // TODO: task 2-14.q)
+  //====================
+  ref_el_type = lf::base::RefElType::kTria;
+  //====================
   return lf::base::RefEl(ref_el_type);
 }
 /* SAM_LISTING_END_1 */
@@ -23,10 +23,10 @@ lf::base::RefEl CRReferenceFiniteElement::RefEl() const {
 /* SAM_LISTING_BEGIN_2 */
 unsigned int CRReferenceFiniteElement::Degree() const {
   unsigned int degree;
-// TODO: task 2-14.q)
-//====================
-// Your code goes here
-//====================
+  // TODO: task 2-14.q)
+  //====================
+  degree = 1;
+  //====================
   return degree;
 }
 /* SAM_LISTING_END_2 */
@@ -34,9 +34,9 @@ unsigned int CRReferenceFiniteElement::Degree() const {
 /* SAM_LISTING_BEGIN_3 */
 lf::assemble::size_type CRReferenceFiniteElement::NumRefShapeFunctions() const {
   lf::assemble::size_type num_ref_shape_functions;
-// TODO: task 2-14.q)
+  // TODO: task 2-14.q)
   //====================
-  // Your code goes here
+  num_ref_shape_functions = 3;
   //====================
   return num_ref_shape_functions;
 }
@@ -45,9 +45,17 @@ lf::assemble::size_type CRReferenceFiniteElement::NumRefShapeFunctions(
     lf::assemble::dim_t codim) const {
   switch (codim) {
     // TODO: task 2-14.q)
-//====================
-// Your code goes here
-//====================
+    //====================
+    case 0: {
+      return 0;
+    }
+    case 1: {
+      return 1;
+    }
+    case 2: {
+      return 0;
+    }
+    //====================
     default:
       LF_VERIFY_MSG(false, "Codimension out of range for triangle")
       return 0;
@@ -58,9 +66,17 @@ lf::assemble::size_type CRReferenceFiniteElement::NumRefShapeFunctions(
     lf::assemble::dim_t codim, lf::base::sub_idx_t subidx) const {
   switch (codim) {
     // TODO: task 2-14.q)
-//====================
-// Your code goes here
-//====================
+    //====================
+    case 0: {
+      return 0;
+    }
+    case 1: {
+      return 1;
+    }
+    case 2: {
+      return 0;
+    }
+    //====================
     default:
       LF_VERIFY_MSG(false, "Codimension out of range for triangle")
       return 0;
@@ -78,9 +94,12 @@ CRReferenceFiniteElement::EvalReferenceShapeFunctions(
   // Initialize a matrix that will store the values of the reference basis
   // functions evaluated at the coordinates passed as arguments
   Eigen::MatrixXd eval_ref_shape_functions(3, num_points);
-// TODO: task 2-14.q)
+  // TODO: task 2-14.q)
   //====================
-  // Your code goes here
+  Eigen::MatrixXd I = Eigen::VectorXd::Ones(num_points).transpose();
+  eval_ref_shape_functions.row(0) = I-2*refcoords.row(1);
+  eval_ref_shape_functions.row(1) = 2*(refcoords.row(0)+refcoords.row(1))-I;
+  eval_ref_shape_functions.row(2) = I-2*refcoords.row(0);
   //====================
   return eval_ref_shape_functions;
 }
