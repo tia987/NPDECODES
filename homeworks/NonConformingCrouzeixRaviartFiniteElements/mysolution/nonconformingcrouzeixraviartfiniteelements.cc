@@ -115,10 +115,18 @@ CRReferenceFiniteElement::GradientsReferenceShapeFunctions(
   // Initialize a matrix that will store the gradients of the reference basis
   // functions evaluated at the coordinates passed as arguments
   Eigen::MatrixXd grad_ref_shape_functions(3, 2 * num_points);
-// TODO: task 2-14.r)
-//====================
-// Your code goes here
-//====================
+  // TODO: task 2-14.r)
+  //====================
+  Eigen::Vector2d v0;
+  v0 << 0,-2;
+  Eigen::Vector2d v1;
+  v1 << 2,2;
+  Eigen::Vector2d v2;
+  v2 << -2,0;
+  grad_ref_shape_functions.row(0) = v0.transpose().replicate(1,num_points);
+  grad_ref_shape_functions.row(1) = v1.transpose().replicate(1,num_points);
+  grad_ref_shape_functions.row(2) = v2.transpose().replicate(1,num_points);
+  //====================
   return grad_ref_shape_functions;
 }
 /* SAM_LISTING_END_5 */
@@ -126,10 +134,11 @@ CRReferenceFiniteElement::GradientsReferenceShapeFunctions(
 /* SAM_LISTING_BEGIN_6 */
 Eigen::MatrixXd CRReferenceFiniteElement::EvaluationNodes() const {
   Eigen::MatrixXd eval_nodes(2, 3);
-// TODO: task 2-14.s)
-//====================
-// Your code goes here
-//====================
+  // TODO: task 2-14.s)
+  //====================
+  eval_nodes << 0.5, 0.5, 0,
+                0,   0.5, 0.5;
+  //====================
   return eval_nodes;
 }
 /* SAM_LISTING_END_6 */
@@ -146,10 +155,10 @@ CRReferenceFiniteElement::NodalValuesToDofs(
                 "nodvals = " << nodvals << " <-> " << NumEvaluationNodes());
 
   Eigen::MatrixXd coeffs;
-// TODO: task 2-14.s)
-//====================
-// Your code goes here
-//====================
+  // TODO: task 2-14.s)
+  //====================
+  coeffs = nodvals;
+  //====================
   return coeffs;
 }
 /* SAM_LISTING_END_7 */

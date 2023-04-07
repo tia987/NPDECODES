@@ -42,7 +42,16 @@ int main() {
   std::cout << "F: " << boundary_functional << "\n";
 
   //====================
-  // Your code goes here
+  std::vector<std::pair<unsigned int, double>> result = AvgValBoundary::approxBoundaryFunctionalValues(7);
+  std::vector<double> res;
+  double diff = 0;
+  for(unsigned i = 0; i < 7; i++){
+    for(unsigned j = 0; j < 7; j++){
+      diff += std::abs(result.at(j).second-AvgValBoundary::approxBoundaryFunctionalValues(i).at(j).second);
+    }
+    res.push_back(diff);
+  }
+  std::cout << (std::log(res(res.size()-1))-std::log(res(res.size()-2)))/(std::log(res(res.size()-2)-std::log(res(res.size()-3))));
   //====================
   return 0;
 }

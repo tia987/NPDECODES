@@ -89,7 +89,13 @@ double compBoundaryFunctional(const lf::assemble::DofHandler &dofh,
                               const Eigen::VectorXd &u, FUNCTION &&w) {
   double result = 0.0;
   //====================
-  // Your code goes here
+  // Set the zero function for alpha and gamma
+  auto a = [](Eigen::VectorXd)->double{return 0.0;};
+  // After compute the matrix and insert w
+  Eigen::SparseMatrix<double> A_crs = compGalerkinMatrix(dofh,a,a,w);
+  // Set the vector (1,1,...,1)^T
+  Eigen::VectorXd one = Eigen::VectorXd::Ones(A_crs.cols());
+  result = one.transpose()*A_crs*u;
   //====================
   return result;
 }

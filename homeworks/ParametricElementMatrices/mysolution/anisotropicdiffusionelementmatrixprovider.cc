@@ -33,7 +33,7 @@ Eigen::MatrixXd AnisotropicDiffusionElementMatrixProvider::Eval(
       /* SAM_LISTING_BEGIN_1 */
 
       // ===================
-      // Your code goes here
+      
       // ===================
 
       break;
@@ -45,7 +45,7 @@ Eigen::MatrixXd AnisotropicDiffusionElementMatrixProvider::Eval(
       /* SAM_LISTING_BEGIN_2 */
 
       // ===================
-      // Your code goes here
+      
       // ===================
 
       break;
