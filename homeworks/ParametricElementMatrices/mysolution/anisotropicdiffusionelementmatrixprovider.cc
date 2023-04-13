@@ -33,7 +33,10 @@ Eigen::MatrixXd AnisotropicDiffusionElementMatrixProvider::Eval(
       /* SAM_LISTING_BEGIN_1 */
 
       // ===================
-      
+      double K = 0;
+
+      lf::assemble::AssembleMatrixLocally();
+      for()
       // ===================
 
       break;
