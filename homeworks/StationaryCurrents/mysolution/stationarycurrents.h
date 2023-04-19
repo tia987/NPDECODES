@@ -80,9 +80,9 @@ lf::mesh::utils::CodimMeshDataSet<int> tagNodes(
 /* SAM_LISTING_BEGIN_1 */
 template <typename SIGMAFUNCTOR>
 Eigen::VectorXd solveMixedBVP(
-    std::shared_ptr<const lf::uscalfe::FeSpaceLagrangeO1<double>> fe_space,
-    lf::mesh::utils::CodimMeshDataSet<int> &nodeflags,
-    std::vector<double> &&voltvals, SIGMAFUNCTOR &&sigma) {
+        std::shared_ptr<const lf::uscalfe::FeSpaceLagrangeO1<double>> fe_space,
+        lf::mesh::utils::CodimMeshDataSet<int> &nodeflags,
+        std::vector<double> &&voltvals, SIGMAFUNCTOR &&sigma) {
   // Mesh functions for coefficients
   lf::mesh::utils::MeshFunctionGlobal mf_sigma{sigma};
   lf::mesh::utils::MeshFunctionConstant<double> mf_gamma{0.0};
@@ -102,7 +102,20 @@ Eigen::VectorXd solveMixedBVP(
   // Assembly of Galerkin matrix and right-hand side vector plus
   // special treatment of dofs at contacts
   //====================
-  // Your code goes here
+  lf::uscalfe::ReactionDiffusionElementMatrixProvider<double,
+                                                      decltype(mf_sigma), 
+                                                      decltype(mf_gamma)> 
+                                                      basis_expansion(fe_space,mf_sigma,mf_gamma);
+  lf::assemble::AssembleMatrixLocally(0,dofh,dofh,basis_expansion,A);
+  double contactPoints = voltvals.size();
+  auto selector = [&](auto id)->std::pair<bool,double>{
+    const lf::mesh::Entity &node{dofh.Entity(id)}; // Get the entity of the node
+    int lim = nodeflags(node); // return 1,0 or -1
+    if ((lim >= 0) && (lim < contactPoints)) return {true, voltvals[lim]}; // If nodeflags values are valid return true
+    else return {false, -1.}; 
+  };
+  phi.setZero();
+  lf::assemble::FixFlaggedSolutionComponents<double>(selector,A,phi);
   //====================
   // Assembly completed: Convert COO matrix A into CRS format using Eigen's
   // internal conversion routines.
@@ -142,8 +155,19 @@ double stabFlux(
                   "Not implemented for " << *cell);
     // Obtain geometry information for entity
     const lf::geometry::Geometry &geo{*cell->Geometry()};
-    //====================
-    // Your code goes here
+    //==================== 
+    auto coordinates = GradsBaryCoords(lf::geometry::Corners(*(cell->Geometry())));
+    // We get the area through the specific function
+    double K = lf::geometry::Volume(geo);
+    // Let's alculate the gradient according to 3.13.11
+    //Eigen::Vector2d quadPoint = (coordinates.col(0)+coordinates.col(1)+coordinates.col(2))/3.;
+    auto globDof{dofh.GlobalDofIndices(*cell)};
+    // We need to access the gradient of u_h according to the global coordinates
+    Eigen::Vector2d locGrad = coordinates*(Eigen::Vector3d() << sol_vec[globDof[0]],sol_vec[globDof[1]],sol_vec[globDof[2]]).finished();
+    // Now we just need to approximate the integral
+    Eigen::MatrixXd zeta{geo.Global(zeta_ref)};
+    auto quadPoint{zeta.col(0)};
+    s += K*(sigma(quadPoint)*locGrad).dot(gradpsi(quadPoint));
     //====================
   }
   return s;
