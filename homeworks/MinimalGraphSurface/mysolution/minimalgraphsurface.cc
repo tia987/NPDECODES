@@ -21,18 +21,25 @@ namespace MinimalGraphSurface {
 double computeGraphArea(
     std::shared_ptr<const lf::uscalfe::FeSpaceLagrangeO1<double>> fes_p,
     const Eigen::VectorXd& mu_vec) {
-  double area;
-  //====================
-  // Your code goes here
-  //====================
-  return area;
+    double area;
+    //====================
+    auto /*lf::mesh::utils::MeshFunctionGlobal<double>*/ mesh = fes_p->Mesh();
+    auto mf = lf::mesh::utils::MeshFunctionGlobal([](Eigen::Vector2d x){
+      Eigen::Vector2d gradu = x;
+      double gradnorm = gradu.norm();
+      return std::sqrt(1-gradnorm*gradnorm);
+    });
+    area = lf::fe::IntegrateMeshFunction(*mesh, mf,[](const lf::mesh::Entity& e){return lf::quad::make_QuadRule(e.RefEl(), 2);});
+    //====================
+    return area;
 }
 /* SAM_LISTING_END_1 */
 
 // Implementation of the constructor
 /* SAM_LISTING_BEGIN_2 */
 //====================
-// Your code goes here
+CoeffTensorA::CoeffTensorA(std::shared_ptr<const lf::uscalfe::FeSpaceLagrangeO1<double>> fes_p,const Eigen::VectorXd& mu)
+  : graduh_(fes_p, mu){}
 //====================
 /* SAM_LISTING_END_2 */
 
@@ -45,7 +52,12 @@ std::vector<Eigen::Matrix2d> CoeffTensorA::operator()(
   // For returning values
   std::vector<Eigen::Matrix2d> Avals(nvals);
   //====================
-  // Your code goes here
+  std::vector<Eigen::VectorXd> gradients = graduh_(e,refc);
+  for(int i = 0; i < nvals; i++){
+    Eigen::Vector2d t = gradients[i];
+    // We can get this from (5.3.5)
+    Avals[i] = Eigen::Matrix2d::Identity()/(std::sqrt(1+t.squaredNorm()))-t*t.transpose()/((std::sqrt(1+t.squaredNorm()))*(std::sqrt(1+t.squaredNorm())));
+  }
   //====================
   return Avals;
 }
@@ -54,7 +66,9 @@ std::vector<Eigen::Matrix2d> CoeffTensorA::operator()(
 // Implementation of constructor for CoeffScalarc
 /* SAM_LISTING_BEGIN_5 */
 //====================
-// Your code goes here
+CoeffScalarc::CoeffScalarc(
+      std::shared_ptr<const lf::uscalfe::FeSpaceLagrangeO1<double>> fes_p,
+      const Eigen::VectorXd& mu) : graduh_(fes_p, mu){}
 //====================
 /* SAM_LISTING_END_5 */
 
@@ -67,7 +81,11 @@ std::vector<double> CoeffScalarc::operator()(
   // For returning values
   std::vector<double> cvals(nvals);
   //====================
-  // Your code goes here
+    std::vector<Eigen::VectorXd> gradients = graduh_(e,refc);
+  for(int i = 0; i < nvals; i++){
+    Eigen::Vector2d t = gradients[i];
+    cvals[i] = -1/std::sqrt(1+t.squaredNorm());
+  }
   //====================
   return cvals;
 }
@@ -87,7 +105,9 @@ Eigen::VectorXd computeNewtonCorrection(
   // Solution vector = return value
   Eigen::VectorXd sol_vec(N_dofs);
   //====================
-  // Your code goes here
+  lf::uscalfe::ReactionDiffusionElementMatrixProvider ;
+  lf::assemble::FixFlagged ;
+  
   //====================
   return sol_vec;
 }

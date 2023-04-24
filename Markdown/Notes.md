@@ -24,3 +24,14 @@
 Eigen::Vector2d locGrad = coordinates*(Eigen::Vector3d() << sol_vec[globDof[0]],sol_vec[globDof[1]],sol_vec[globDof[2]]).finished();
 ``` 
 - What does the .finished() actually do?
+
+## (5-3.g)
+```C++
+for (int i = 0; i < nvals; ++i) {
+const Eigen : : Vector2d g{ gradvals [ i ] } ; const double norms_g = g . squaredNorm ( ) ; Avals[i] =
+                    }
+return
+1.0 / std::sqrt(1.0 + norms_g) *
+(Eigen::Matrix2d::Identity() − g * g.transpose() / (1.0 + norms_g));
+```
+- How did they come up with this Solution??
