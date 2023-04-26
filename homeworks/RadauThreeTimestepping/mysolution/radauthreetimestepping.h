@@ -138,7 +138,18 @@ Eigen::Vector3d TrapRuleLinFEElemVecProvider<FUNCTOR>::Eval(
     const lf::mesh::Entity &tria) {
   Eigen::Vector3d ElemVec;
   //====================
-  // Your code goes here
+  // Throw error in case no triangular cell
+  LF_VERIFY_MSG(tria.RefEl() == lf::base::RefEl::kTria(),
+		  "Unsupported cell type " << tria.RefEl());
+  // Obtain vertex coordinates of the triangle in a 2x3 matrix
+  const auto corners{lf::geometry::Corners(*(tria.Geometry()))};
+  const double area_third = lf::geometry::Volume(*(tria.Geometry())) / 3.0;
+  LF_ASSERT_MSG((corners.cols() == 3) && (corners.rows() == 2),
+		  "Invalid vertex coordinate " << corners.rows() << "x"
+		  << corners.cols() << " matrix");
+  ElemVec << area_third*f_(corners.col(0)),
+             area_third*f_(corners.col(1)),
+             area_third*f_(corners.col(2));
   //====================
   return ElemVec;
 }
@@ -168,10 +179,10 @@ class Radau3MOLTimestepper {
                                             const Eigen::VectorXd &mu) const;
 
  private:
-  const lf::assemble::DofHandler &dofh_;  // dangerous
-                                          //====================
-                                          // Your code goes here
-                                          //====================
+  const lf::assemble::DofHandler &dofh_;
+  Eigen::SparseMatrix<double> A_;
+  Eigen::SparseMatrix<double> A;
+  Eigen::SparseMatrix<double> M_;
 };
 
 }  // namespace RadauThreeTimestepping

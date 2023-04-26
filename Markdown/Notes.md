@@ -35,3 +35,76 @@ return
 (Eigen::Matrix2d::Identity() − g * g.transpose() / (1.0 + norms_g));
 ```
 - How did they come up with this Solution??
+
+## (9-1.f)
+```C++
+// Deduction guide for TrapRuleLinFEElemVecProvider
+template <typename FUNCTOR>
+TrapRuleLinFEElemVecProvider(FUNCTOR) -> TrapRuleLinFEElemVecProvider<FUNCTOR>;
+
+// TrapRuleLinFEElemVecProvider
+/* Implementing member function Eval of class TrapRuleLinFEElemVecProvider*/
+/* SAM_LISTING_BEGIN_3 */
+template <typename FUNCTOR>
+Eigen::Vector3d TrapRuleLinFEElemVecProvider<FUNCTOR>::Eval(
+    const lf::mesh::Entity &tria) {
+  Eigen::Vector3d ElemVec;
+  //====================
+  // Throw error in case no triangular cell
+  LF_VERIFY_MSG(tria.RefEl() == lf::base::RefEl::kTria(),
+		  "Unsupported cell type " << tria.RefEl());
+  // Obtain vertex coordinates of the triangle in a 2x3 matrix
+  const auto corners{lf::geometry::Corners(*(tria.Geometry()))};
+  const double area_third = lf::geometry::Volume(*(tria.Geometry())) / 3.0;
+  LF_ASSERT_MSG((corners.cols() == 3) && (corners.rows() == 2),
+		  "Invalid vertex coordinate " << corners.rows() << "x"
+		  << corners.cols() << " matrix");
+  ElemVec << area_third*f_(corners.col(0)),
+             area_third*f_(corners.col(1)),
+             area_third*f_(corners.col(2));
+  //====================
+  return ElemVec;
+}
+```
+
+- Shouldn't we use the trapezoidal rule in this case? Why it doesn't hange from the normal LinFEElemVecProvider?
+
+```C++
+auto mesh_p = dofh.Mesh();
+  auto bd_flags{lf::mesh::utils::flagEntitiesOnBoundary(mesh_p, 1)};
+  for(auto vertex : mesh_p->Entities(1)){
+    if(bd_flags(*vertex)){
+      auto index = dofh.GlobalDofIndices(*vertex);
+      phi(index[0]) = 0.;
+    }
+  }
+```
+
+- `mesh_p->Entities(1)` why this works even if we set 1? What should it represent?
+- Also for bd_flags, how does this work?
+- I also still struggle to understand a little bit the function `GlobalDofIndices`, so basically this gives us the index related to the RHS vector. But what is exactly its type? And also why at 0 we should find the exact position for phi?
+
+```C++
+/* Implementing member function Eval of class LinFEMassMatrixProvider*/
+Eigen::Matrix<double, 3, 3> LinFEMassMatrixProvider::Eval(
+    const lf::mesh::Entity &tria) {
+  Eigen::Matrix<double, 3, 3> elMat;
+  //====================
+  // Throw error in case no triangular cell
+  LF_VERIFY_MSG(tria.RefEl() == lf::base::RefEl::kTria(),
+		  "Unsupported cell type " << tria.RefEl());
+  // Obtain vertex coordinates of the triangle in a 2x3 matrix
+  const double area = lf::geometry::Volume(*(tria.Geometry()));
+  LF_ASSERT_MSG((corners.cols() == 3) && (corners.rows() == 2),
+		  "Invalid vertex coordinate " << corners.rows() << "x"
+		  << corners.cols() << " matrix");
+   elMat << 2.0, 1.0, 1.0,
+           1.0, 2.0, 1.0,
+           1.0, 1.0, 2.0;
+  // clang-format on
+  elMat *= area / 12.0;;
+  //====================
+  return elMat;  // return the local mass element matrix
+```
+
+- Why do we set the `elMat` in this way? In the exercise questions there is no indication about it.
