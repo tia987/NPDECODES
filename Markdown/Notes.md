@@ -17,7 +17,7 @@
   lf::assemble::FixFlaggedSolutionComponents<double>(selector,A,phi);
 ```
 - why do we need to set the selector in such way?
-- Also for the AssembleMatrixLocally, when do we write only once the argument dofh?
+- Also for the AssembleMatrixLocally, when do we write only once the argument dofh? and what does AssembleMatrixLocally / AssembleVectorLocally do?
 
 ## (3-13.j)
 ```C++
@@ -108,3 +108,4 @@ Eigen::Matrix<double, 3, 3> LinFEMassMatrixProvider::Eval(
 ```
 
 - Why do we set the `elMat` in this way? In the exercise questions there is no indication about it.
+
