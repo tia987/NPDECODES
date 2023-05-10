@@ -58,8 +58,7 @@ class KineticPropagator : public Propagator {
 
  private:
   //====================
-  // Your code goes here
-  // Add needed member variables here
+  
   //====================
 };
 

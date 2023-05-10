@@ -21,17 +21,16 @@ namespace NonLinSchroedingerEquation {
 KineticPropagator::KineticPropagator(const SparseMatrixXd &A,
                                      const SparseMatrixXcd &M, double tau) {
   //====================
-  // Your code goes here
+  
   //====================
 }
 
 Eigen::VectorXcd KineticPropagator::operator()(
     const Eigen::VectorXcd &mu) const {
   //====================
-  // Your code goes here
-  // Replace mu by its value after a timestep tau
-  return mu;
+  
   //====================
+  return mu;
 }
 /* SAM_LISTING_END_1 */
 
@@ -66,8 +65,7 @@ Eigen::VectorXcd SplitStepPropagator::operator()(
     const Eigen::VectorXcd &mu) const {
   Eigen::VectorXcd nu(mu.size());
   //====================
-  // Your code goes here
-  // Implement the Strang splitting
+  
   //====================
   return nu;
 }
