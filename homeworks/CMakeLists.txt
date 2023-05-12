@@ -85,6 +85,7 @@ add_subdirectory(TransformedConsLaw)
 add_subdirectory(TranspSemiLagr)
 add_subdirectory(UnstableBVP)
 add_subdirectory(UpwindFiniteVolume) # Under construction
+add_subdirectory(UpwindExercise) # Under construction
 add_subdirectory(UpwindQuadrature)
 add_subdirectory(WaveABC2D)
 add_subdirectory(ZienkiewiczZhuEstimator)
