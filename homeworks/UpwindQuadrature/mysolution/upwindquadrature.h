@@ -79,7 +79,7 @@ Eigen::Matrix3d UpwindConvectionElementMatrixProvider<FUNCTOR>::Eval(
   Eigen::Matrix3d loc_mat;
 
   //====================
-  // Your code goes here
+  
   //====================
   return loc_mat;
 }

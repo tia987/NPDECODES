@@ -62,7 +62,7 @@ int main() {
    // TODO: 1.1 get dofhandler
    auto fe_space =
        std::make_shared<lf::uscalfe::FeSpaceLagrangeO1<double>>(mesh_p);
-   const lf::assemble::DofHandler &dofh{...};
+   const lf::assemble::DofHandler &dofh{fe_space->LocGlobMap()};
 
    // PREPARING DATA TO IMPOSE DIRICHLET CONDITIONS
    // Create a dataset of boolean flags indicating edges on the boundary of the
@@ -72,7 +72,7 @@ int main() {
    // Fetch flags and values for degrees of freedom located on Dirichlet
    // boundary.
    // TODO: 1.2 make an edge flagger (see InitEssentialConditionFromFunction in lehrfem++ Documentation)
-   auto ess_bdc_flags_values = ...;
+   auto ess_bdc_flags_values =  InitEssentialConditionFromFunction(*fe_space, lf::base::PredicateTrue{}, mf_boundary);
 
    //============================================================================
    // SOLVE LAPLACIAN WITH NON-HOMOGENEOUS DIRICHLET BC (STANDARD: UNSTABLE)
@@ -86,13 +86,13 @@ int main() {
        fe_space, mf_eps, lf::mesh::utils::MeshFunctionConstant(0.0));
 
    // TODO: 1.3 assemble the laplace Galerkin matrix part
-   ...;
+   lf::assemble::AssembleMatrixLocally(0, dofh, dofh, laplacian_provider, A);
 
    // Next part corresponding to the convection term:
    ConvectionDiffusion::ConvectionElementMatrixProvider convection_provider(v);
 
-   //TODO: 1.4 assemble the convection Galerkin matrix part
-   ...;
+   //TODO: 1.4 assemble the convection Galerkin matrix part   
+   lf::assemble::AssembleMatrixLocally(0, dofh, dofh, convection_provider, A);
 
    // RIGHT-HAND SIDE VECTOR
    Eigen::VectorXd phi(dofh.NumDofs());
@@ -103,15 +103,17 @@ int main() {
    // TODO: 1.5 pass ess_bdc_flags_values to FixFlaggedSolutionComponents
    // make sure it has a call operator (Hint: make a lambda)
    lf::assemble::FixFlaggedSolutionComponents<double>(
-       ...,
+       [&](int gdof_idx) {
+           return ess_bdc_flags_values[gdof_idx];
+       },
        A, phi);
 
    // SOLVE LINEAR SYSTEM
    // TODO: 1.6 convert A into an Eigen::SparseMatrix and solve the linear system of equations
-   Eigen::SparseMatrix A_crs = ...;
-   ... solver;
-   solver.compute(...);
-   Eigen::VectorXd sol_vec = ...;
+   Eigen::SparseMatrix A_crs = A.makeSparse();
+   Eigen::SparseLU<Eigen::SparseMatrix<double>> solver;
+   solver.compute(A_crs);
+   Eigen::VectorXd sol_vec = solver.solve(phi);
 
    // output solution
    std::ofstream solution_file_unstable(CURRENT_SOURCE_DIR "/upwind_quadrature_solution_unstable.txt");
@@ -131,7 +133,8 @@ int main() {
    // First the part corresponding to the laplacian, computed using standard
    // Galerkin approach
    // TODO: 2.1 assemble the laplace Galerkin matrix (see 1.3)
-   ...;
+   lf::assemble::AssembleMatrixLocally(0, dofh, dofh, laplacian_provider,
+                                       A_stable);
 
    // Next part corresponding to the convection term, computed using upwind
    // quadrature:
@@ -139,7 +142,8 @@ int main() {
    UpwindQuadrature::UpwindConvectionElementMatrixProvider
        convection_provider_stable(v, UpwindQuadrature::initializeMasses(mesh_p));
    // TODO: 2.3 assemble the advection Gelerkin matrix (see 1.4)
-   ...;
+   lf::assemble::AssembleMatrixLocally(0, dofh, dofh, convection_provider_stable,
+                                       A_stable);   
 
    // RIGHT-HAND SIDE VECTOR
    Eigen::VectorXd phi_stable(dofh.NumDofs());
@@ -149,15 +153,17 @@ int main() {
    // Eliminate Dirichlet dofs from linear system
    // TODO: 2.4 pass ess_bdc_flags_values to FixFlaggedSolutionComponents (see 1.5)
    lf::assemble::FixFlaggedSolutionComponents<double>(
-       ...,
+       [&](int gdof_idx) {
+           return ess_bdc_flags_values[gdof_idx];
+       },
        A_stable, phi_stable);
 
    // SOLVE LINEAR SYSTEM
    // TODO: 2.5 convert A into an Eigen::SparseMatrix and solve the linear system of equations (see 1.6)
-   Eigen::SparseMatrix A_stable_crs = ...;
-   ... solver_stable;
-   solver_stable.compute(...);
-   Eigen::VectorXd sol_vec_stable = ...;
+   Eigen::SparseMatrix A_stable_crs = A.makeSparse();
+   Eigen::SparseLU<Eigen::SparseMatrix<double>> solver_stable;
+   solver_stable.compute(A_stable_crs);
+   Eigen::VectorXd sol_vec_stable = solver_stable.solve(phi_stable);
 
    std::ofstream solution_file(CURRENT_SOURCE_DIR
                                "/upwind_quadrature_solution_stable.txt");

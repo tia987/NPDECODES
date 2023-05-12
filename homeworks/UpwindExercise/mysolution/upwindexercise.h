@@ -55,21 +55,21 @@ Eigen::Matrix3d UpwindConvectionElementMatrixProvider<FUNCTOR>::Eval(
     // masses of the corners.
     std::vector<double> local_masses;
     // TODO: 2.2.2 collect the local masses
-    for (...) {
-        local_masses.push_back(masses_(...));
+    for (auto &corner : *geo_ptr) {
+        local_masses.push_back(masses_(corner));
     }
 
     // Compute velocities at corners
     Eigen::MatrixXd velocities(2, 3);
     // TODO: 2.2.3 calculate the velocity field at the corners
-    velocities << v_(...), v_(...), v_(...);
+    velocities << v_(), v_(), v_();
 
     // Matrix of outer normals(not normalized)
     // TODO: 2.2.4 why does this work?
     Eigen::MatrixXd n = -grad_basis;
 
     // TODO: 2.2.5
-    // compute rows of the local matrix according to the upwind quadrature scheme.
+    // compute e scheme.
     // $-v(a^j)$ points into the triangle K
     // iff the inner product of $v(a^j)$ with the two adjecant outer normals is
     // positive.

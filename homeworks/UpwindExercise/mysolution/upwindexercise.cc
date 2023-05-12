@@ -20,7 +20,7 @@ lf::mesh::utils::CodimMeshDataSet<double> initializeMasses(
        double area = lf::geometry::Volume(*geo_ptr);
        for (const lf::mesh::Entity *corner : entity->SubEntities(2)) {
            // TODO: 2.2.1 compute the masses accordingly
-           masses(*corner) += ...;
+           masses(*corner) += 0.;
        }
    }
    return masses;
