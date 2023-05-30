@@ -22,7 +22,19 @@ int main() {
 
   // Write the solutions to a file that can be used for plotting.
   //====================
-  // Your code goes here
+  std::ofstream solution_file;
+  solution_file.open("solution.csv");
+  solution_file << x.transpose().format(BurgersEquation::CSVFormat)
+                << std::endl;
+  solution_file << mu03.transpose().format(BurgersEquation::CSVFormat)
+                << std::endl;
+  solution_file << mu30.transpose().format(BurgersEquation::CSVFormat)
+                << std::endl;
+  solution_file.close();
+  std::cout << "Generated " CURRENT_BINARY_DIR "/solution.csv" << std::endl;
+  std::system("python3 " CURRENT_SOURCE_DIR
+              "/plot_solution.py " CURRENT_BINARY_DIR
+              "/solution.csv " CURRENT_BINARY_DIR "/solution.eps");
   //====================
   /* SAM_LISTING_END_1 */
 

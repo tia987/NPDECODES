@@ -18,7 +18,8 @@ namespace EngquistOsherNumericalFlux {
 double EngquistOsherNumFlux(double v, double w) {
   double result;
   //====================
-  // Your code goes here
+  auto Fv = [](double v) { return 0 <= v ? std::cosh(v) - 0.5 : 0.5; };
+  result = Fv(v)+Fv(-w);
   //====================
   return result;
 }
@@ -39,7 +40,20 @@ Eigen::VectorXd solveCP(double a, double b, Eigen::VectorXd u0, double T) {
 
   // Main timestepping loop
   //====================
-  // Your code goes here
+  Eigen::VectorXd mu(N) ;
+  for(unsigned i = 0; i < timesteps; i++){
+    mu.swap(u0);
+    double F_minus;
+    double F_plus = EngquistOsherNumFlux(mu(0),mu(0));
+    for (int j = 0; j < N-1; ++j){
+      F_minus = F_plus;
+      F_plus = EngquistOsherNumFlux(mu(j),mu(j+1));
+      u0(j) = mu(j)-tau/h*(F_plus-F_minus);
+    }
+    F_minus = F_plus;
+    F_plus = EngquistOsherNumFlux(mu(N-1),mu(N-1));
+    u0(N-1) = mu(N-1)-tau/h*(F_plus-F_minus);
+  }
   //====================
 
   return u0;

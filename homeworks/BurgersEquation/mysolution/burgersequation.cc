@@ -27,12 +27,17 @@ Eigen::VectorXd solveBurgersGodunov(double T, unsigned int N) {
   // initialize vector with initial nodal values
   Eigen::VectorXd x = Eigen::VectorXd::LinSpaced(N + 1, -1.0, 4.0);
   Eigen::VectorXd mu =
-      x.unaryExpr([](double x) {
-         return 0.0 <= x && x <= 1.0 ? Square(std::sin(PI * x)) : 0.0;
-       }).eval();
+    x.unaryExpr([](double x) {
+        return 0.0 <= x && x <= 1.0 ? Square(std::sin(PI * x)) : 0.0;
+      }).eval();
 
   //====================
-  // Your code goes here
+  mu(0) = 0.;
+  for(unsigned j = 0; j < m; j++){
+    for(unsigned i = N; i > 0; i--){
+      mu(i) -= tau/h*(f(mu(i))-f(mu(i-1)));
+    }
+  }
   //====================
 
   return mu;
@@ -68,7 +73,11 @@ Eigen::Matrix<double, 3, 4> numexpBurgersGodunov() {
   result.row(0) = h.transpose();
 
   //====================
-  // Your code goes here
+  for(unsigned i = 0; i < 2; i++){
+    reduce();
+  }
+  
+
   //====================
 
   return result;
