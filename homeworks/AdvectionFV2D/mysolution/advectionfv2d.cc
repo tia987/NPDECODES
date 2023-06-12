@@ -35,24 +35,77 @@ Eigen::Matrix<double, 2, 3> gradbarycoordinates(
 /* SAM_LISTING_END_1 */
 
 /* SAM_LISTING_BEGIN_2 */
-std::shared_ptr<
-    lf::mesh::utils::CodimMeshDataSet<Eigen::Matrix<double, 2, Eigen::Dynamic>>>
-computeCellNormals(std::shared_ptr<const lf::mesh::Mesh> mesh_p) {
-  //====================
-  // Your code goes here
-  //====================
-  return nullptr;
+std::shared_ptr<lf::mesh::utils::CodimMeshDataSet<Eigen::Matrix<double, 2, Eigen::Dynamic>>>
+    computeCellNormals(std::shared_ptr<const lf::mesh::Mesh> mesh_p) {
+    //====================  
+    lf::mesh::utils::CodimMeshDataSet<Eigen::Matrix<double, 2, Eigen::Dynamic>> norm_store(mesh_p,0);
+    
+    for(const lf::mesh::Entity *cell : mesh_p->Entities(0)){
+        const lf::geometry::Geometry *geo_p = cell->Geometry();
+        const Eigen::MatrixXd corners = lf::geometry::Corners(*geo_p);
+
+        if(corners.cols() == 3){
+            Eigen::Matrix<double,2,Eigen::Dynamic> normal_vectors(2,3);
+            Eigen::Matrix<double,2,3> bary_coord = gradbarycoordinates(corners);
+            normal_vectors.col(0) = -bary_coord.col(2).normalized();
+            normal_vectors.col(1) = -bary_coord.col(0).normalized();
+            normal_vectors.col(2) = -bary_coord.col(1).normalized();
+            norm_store(*cell) = normal_vectors;
+        } else {
+            Eigen::Matrix<double,2,Eigen::Dynamic> normal_vectors(2,4);
+            Eigen::Matrix<double,2,3> tri_1;
+            Eigen::Matrix<double,2,3> tri_2;
+            tri_1 << corners.col(0), corners.col(1), corners.col(2);
+            tri_2 << corners.col(0), corners.col(2), corners.col(3);
+            Eigen::Matrix<double,2,3> bary_coord_1 = gradbarycoordinates(tri_1);
+            Eigen::Matrix<double,2,3> bary_coord_2 = gradbarycoordinates(tri_2);
+            normal_vectors.col(0) = -bary_coord_1.col(2).normalized();
+            normal_vectors.col(1) = -bary_coord_1.col(0).normalized();
+            normal_vectors.col(2) = -bary_coord_2.col(0).normalized();
+            normal_vectors.col(3) = -bary_coord_2.col(1).normalized();
+            norm_store(*cell) = normal_vectors;
+        }
+    }
+    return std::make_shared<lf::mesh::utils::CodimMeshDataSet<Eigen::Matrix<double,2,Eigen::Dynamic>>>(norm_store);
+    //====================
+    return nullptr;
 }
 /* SAM_LISTING_END_2 */
 
 /* SAM_LISTING_BEGIN_3 */
-std::shared_ptr<
-    lf::mesh::utils::CodimMeshDataSet<std::array<const lf::mesh::Entity *, 4>>>
-getAdjacentCellPointers(std::shared_ptr<const lf::mesh::Mesh> mesh_p) {
-  //====================
-  // Your code goes here
-  //====================
-  return nullptr;
+std::shared_ptr<lf::mesh::utils::CodimMeshDataSet<std::array<const lf::mesh::Entity *, 4>>>
+    getAdjacentCellPointers(std::shared_ptr<const lf::mesh::Mesh> mesh_p) {
+    //====================
+    lf::mesh::utils::CodimMeshDataSet<std::array<const lf::mesh::Entity *, 2>> prt_reducted(mesh_p,1,{nullptr, nullptr});
+    
+    for(const lf::mesh::Entity *cell : mesh_p->Entities(0)){
+        auto cell_edges = cell->SubEntities(1);
+        for(const lf::mesh::Entity *edge : cell_edges){
+            if(prt_reducted(*edge)[0] == nullptr) {
+                prt_reducted(*edge)[0] = cell;
+            } else if(prt_reducted(*edge)[1] == nullptr) {
+                prt_reducted(*edge)[1] = cell;
+            } else {
+               throw std::runtime_error("FUCK");
+            }
+        }
+    }
+    lf::mesh::utils::CodimMeshDataSet<std::array<const lf::mesh::Entity *, 4>> ptr_store(mesh_p,0,{nullptr, nullptr, nullptr, nullptr});
+    for(const lf::mesh::Entity *cell : mesh_p->Entities(0)){
+        auto cell_edges = cell->SubEntities(1);
+        unsigned counter = 0;
+        for(const lf::mesh::Entity *edge : cell_edges){
+            if(prt_reducted(*edge)[0] != cell){
+                  ptr_store(*cell)[counter] = prt_reducted(*edge)[0];
+            } else {
+                  ptr_store(*cell)[counter] = prt_reducted(*edge)[1];
+            }
+            counter++;
+        }
+    }
+    return std::make_shared<lf::mesh::utils::CodimMeshDataSet<std::array<const lf::mesh::Entity *, 4>>>(ptr_store);
+    //====================
+    return nullptr;
 }
 /* SAM_LISTING_END_3 */
 
