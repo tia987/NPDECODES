@@ -37,14 +37,13 @@ Eigen::SparseMatrix<double> compBmat(int Ml, int Mr, double h);
 template <typename FUNCTOR, typename NUMFLUX>
 Eigen::VectorXd G(const Eigen::VectorXd &mu, FUNCTOR &&f, NUMFLUX &&F, int Ml,
                   int Mr, double h) {
-  const int N_half = (Ml + Mr + 1);
-  const int N = 2 * N_half;
-  Eigen::VectorXd Gvec(N);
-  //====================
-  // Your code goes here
-  // Fill the vector Gvec
-  //====================
-  return Gvec;
+    const int N_half = (Ml + Mr + 1);
+    const int N = 2 * N_half;
+    Eigen::VectorXd Gvec(N);
+    //====================
+
+    //====================
+    return Gvec;
 }
 /* SAM_LISTING_END_1 */
 
@@ -64,10 +63,19 @@ Eigen::VectorXd G(const Eigen::VectorXd &mu, FUNCTOR &&f, NUMFLUX &&F, int Ml,
 template <typename FUNCTOR, typename NUMFLUX>
 Eigen::VectorXd dgcl(Eigen::VectorXd mu0, FUNCTOR &&f, NUMFLUX &&F, double T,
                      int Ml, int Mr, double h, unsigned int m) {
-  //====================
-  // Your code goes here
-  //====================
-  return mu0;
+    //====================
+    Eigen::SparseMatrix<double> B = compBmat(Ml,Mr,h);
+    Eigen::SparseMatrix<double> Binv = B.cwiseInverse();
+    auto G_bound = [&f,&F,T,Ml,Mr,h](const Eigen::VectorXd &mu){
+      return G(mu,std::forward<FUNCTOR>(f),std::forward<NUMFLUX>(F),Ml,Mr,h);
+    };
+    double tau = T/m;
+    for(unsigned i = 0; i < m; i++){
+        Eigen::VectorXd k = -Binv * G_bound(mu0);
+        mu0 -= tau*Binv*G_bound(mu0+0.5*tau*k);
+    }
+    //====================
+    return mu0;
 }
 /* SAM_LISTING_END_2 */
 
