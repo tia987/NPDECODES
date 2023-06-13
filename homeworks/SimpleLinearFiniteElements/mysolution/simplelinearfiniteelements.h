@@ -61,14 +61,10 @@ double L2Error(const TriaMesh2D &mesh, const Eigen::VectorXd &uFEM,
                FUNCTOR &&exact) {
     double l2error_squared = 0.0;
     //====================
-    for (size_t i = 0; i < mesh._elements.rows(); i++){
-        TriGeo_t K = mesh.getVtCoords(i);
-        
-        Eigen::Vector3d U;
-        for (size_t j = 0; j < 3; j++){      
-          U(j) = exact(K.col(j))-uFEM(mesh._elements(i,j)); // Why here we need to use mesh._elements(i,j)? What does this exactly represent?
-        }
-        l2error_squared += 1/3.*getArea(K)*U.squaredNorm(); 
+    for(unsigned i = 0; i < mesh._elements.rows(); i++){
+				auto coordinates = mesh.getVtCoords(i);				
+				double area = getArea(coordinates);
+				l2error_squared = area*(uFEM(0)+uFEM(1)+uFEM(2))/3.;
     }
     //====================
     return std::sqrt(l2error_squared);
