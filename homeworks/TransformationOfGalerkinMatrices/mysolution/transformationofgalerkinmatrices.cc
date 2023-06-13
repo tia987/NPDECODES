@@ -38,8 +38,6 @@ std::vector<Eigen::Triplet<double>> transformCOOmatrix(
   int N = n_cols;      // Size of (square) matrix
   int M = n_cols / 2;  // Half the size
   //====================
-  // Your code goes here
-  //====================
   Eigen::SparseMatrix<double> m(N,N);
   m.setFromTriplets(A.begin(), A.end());
   for (size_t i = 1; i < N; i++){
@@ -66,6 +64,7 @@ std::vector<Eigen::Triplet<double>> transformCOOmatrix(
       }
     }
   }
+  //====================
 
   return A_t;
 }
