@@ -44,22 +44,22 @@ Eigen::Matrix<double, 2, 3> gradbarycoordinates(const TriGeo_t &vertices) {
  */
 /* SAM_LISTING_BEGIN_1 */
 Eigen::Matrix3d ElementMatrix_Mass_LFE(const TriGeo_t &V) {
-  Eigen::Matrix3d element_matrix;
-  for(size_t i = 0; i < 3; i++){
-    for(size_t j = 0; j < 3; j++){
-      if(i == j) element_matrix(i,j) = 2;
-      else element_matrix(i,j) = 1;
-    }
-  }
-  element_matrix = element_matrix*getArea(V)/12.;
-  return element_matrix;
+    Eigen::Matrix3d element_matrix;
+    //====================
+    double t1 = 2/12.*getArea(V);
+    double t2 = 1/12.*getArea(V);
+    element_matrix << t1,t2,t2,
+                      t2,t1,t2,
+                      t2,t2,t1;
+    //====================
+    return element_matrix;
 }
 /* SAM_LISTING_END_1 */
 
 /**
- *  @brief Computation of Element Matrix for the Laplacian
- *  @param V The vertices of the triangle
- */
+
+
+ *  @brief Computation of Element Matrix for the Laplacian *  @param V The vertices of the triangle */
 Eigen::Matrix3d ElementMatrix_Lapl_LFE(const TriGeo_t &V) {
   // Argument \texttt{V} same as \texttt{vertices} in \cref{cpp:gradbarycords}.
   // The function returns the $3\times 3$ element matrix as a fixed size
@@ -173,27 +173,19 @@ Eigen::VectorXd assemLoad_LFE(const TriaMesh2D &Mesh,
 double H1Serror(
     const TriaMesh2D &mesh, const Eigen::VectorXd &uFEM,
     const std::function<Eigen::Vector2d(const Eigen::Vector2d &)> exact) {
-  double H1Serror_squared = 0.0;
-  //====================
-  for (size_t i = 0; i < mesh._elements.rows(); i++){
-    TriGeo_t K = mesh.getVtCoords(i);
-    
-    // QUESTION: This calculates the gradient
-    // At the coordinates at K, right?
-    Eigen::Vector3d values_at_vertices;
-    for(int k = 0; k < 3; ++k) {
-      values_at_vertices(k) = uFEM[mesh._elements(i , k) ];
-    }
-    Eigen::Vector2d grad = gradbarycoordinates(K)*values_at_vertices;
+    double H1Serror_squared = 0.0;
 
-    Eigen::Vector3d U;
-    for (size_t j = 0; j < 3; j++){      
-      U(j) = (exact(K.col(j))-grad).squaredNorm();
+    //====================    
+    //Eigen::Matrix<double, 2, 3> gradbarycoordinates(const TriGeo_t &vertices) {
+    for(unsigned i = 0; i < mesh._elements.rows(); i++){
+				auto coordinates = mesh.getVtCoords(i);			
+        auto grad = gradbarycoordinates(coordinates);	
+				double area = getArea(coordinates);
+				H1Serror_squared = area*(uFEM(0)+uFEM(1)+uFEM(2))/3.;
     }
-    H1Serror_squared += 1/3.*getArea(K)*(U(0)+U(1)+U(2)); 
-  }
-  //====================
-  return std::sqrt(H1Serror_squared);
+    //====================
+
+    return std::sqrt(H1Serror_squared);
 }
 /* SAM_LISTING_END_3 */
 
@@ -224,35 +216,10 @@ std::tuple<Eigen::VectorXd, double, double> Solve(
 
   //====================
   // Your code goes here
-  /*
   // Assigning some dummy values
   U = Eigen::VectorXd::Zero(mesh._nodecoords.rows());
   l2error = 1.0;
-  */
   h1error = 1.0;
-  U = Eigen::VectorXd::Zero(mesh._nodecoords.rows());
-    
-  // Case for L2 error
-  // First we assemble the Galerkin matrix
-  Eigen::SparseMatrix<double> A = assembleGalMatLFE(mesh,getElementMatrix);
-  // Set the matrix solver
-  Eigen::SparseLU<Eigen::SparseMatrix<double>,Eigen::COLAMDOrdering<int>> solver;
-  solver.analyzePattern(A);
-  solver.factorize(A);
-  // Solve for U and return the error
-  U = solver.solve(assemLoad_LFE(mesh,localLoadLFE,f));
-  l2error = L2Error(mesh,U,uExact);
-
-  // Case for H1 error
-  // We need only to compute the gradient of uExact
-  auto grad = [pi](Eigen::Vector2d x){
-    double PI = 2*pi;
-    Eigen::Vector2d t;
-    t << -PI*std::sin(PI*x(0))*std::cos(PI*x(1)),-PI*std::cos(PI*x(0))*std::sin(PI*x(1));
-    return t;
-  };
-
-  h1error = H1Serror(mesh,U,grad);
   //====================
   return std::make_tuple(U, l2error, h1error);
 }
