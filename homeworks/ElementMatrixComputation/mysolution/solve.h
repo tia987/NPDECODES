@@ -40,60 +40,60 @@ namespace ElementMatrixComputation {
 template <class ELMAT_PROVIDER, class ELVEC_PROVIDER>
 Eigen::VectorXd solve(ELMAT_PROVIDER &elmat_provider,
                       ELVEC_PROVIDER &elvec_provider) {
-  // Use one of LehrFEM++'s default meshes. Try different meshes by changing the
-  // function index parameter. See the documentation of that function for
-  // details ablut the available meshes
-  std::shared_ptr<const lf::mesh::Mesh> mesh_p =
-      lf::mesh::test_utils::GenerateHybrid2DTestMesh(8, 1.0 / 3.0);
-  // We use a linear Lagrangian FE space
-  auto fe_space =
-      std::make_shared<lf::uscalfe::FeSpaceLagrangeO1<double>>(mesh_p);
-  // Reference to current mesh, obtained from the FE space
-  const lf::mesh::Mesh &mesh{*(fe_space->Mesh())};
-  // Obtain local->global index mapping for current finite element space
-  const lf::assemble::DofHandler &dofh{fe_space->LocGlobMap()};
-  // Dimension of finite element space`
-  const lf::base::size_type N_dofs(dofh.NumDofs());
+  	// Use one of LehrFEM++'s default meshes. Try different meshes by changing the
+  	// function index parameter. See the documentation of that function for
+  	// details ablut the available meshes
+  	std::shared_ptr<const lf::mesh::Mesh> mesh_p =
+  	    lf::mesh::test_utils::GenerateHybrid2DTestMesh(8, 1.0 / 3.0);
+  	// We use a linear Lagrangian FE space
+  	auto fe_space =
+  	    std::make_shared<lf::uscalfe::FeSpaceLagrangeO1<double>>(mesh_p);
+  	// Reference to current mesh, obtained from the FE space
+  	const lf::mesh::Mesh &mesh{*(fe_space->Mesh())};
+  	// Obtain local->global index mapping for current finite element space
+  	const lf::assemble::DofHandler &dofh{fe_space->LocGlobMap()};
+  	// Dimension of finite element space`
+  	const lf::base::size_type N_dofs(dofh.NumDofs());
 
-  // Matrix in triplet format holding Galerkin matrix, zero initially.
-  lf::assemble::COOMatrix<double> A(N_dofs, N_dofs);
-  // Invoke assembly on cells (co-dimension = 0). The element matrix provider is
-  // passed as an argument
-  lf::assemble::AssembleMatrixLocally(0, dofh, dofh, elmat_provider, A);
-  Eigen::SparseMatrix<double> A_crs = A.makeSparse();
+  	// Matrix in triplet format holding Galerkin matrix, zero initially.
+  	lf::assemble::COOMatrix<double> A(N_dofs, N_dofs);
+  	// Invoke assembly on cells (co-dimension = 0). The element matrix provider is
+  	// passed as an argument
+  	lf::assemble::AssembleMatrixLocally(0, dofh, dofh, elmat_provider, A);
+  	Eigen::SparseMatrix<double> A_crs = A.makeSparse();
 
-  // Right-hand side vector; has to be set to zero initially
-  Eigen::Matrix<double, Eigen::Dynamic, 1> phi(N_dofs);
-  phi.setZero();
-  // Invoke assembly on cells (codim == 0). The element vector provider is
-  // passed as an argument
-  AssembleVectorLocally(0, dofh, elvec_provider, phi);
+  	// Right-hand side vector; has to be set to zero initially
+  	Eigen::Matrix<double, Eigen::Dynamic, 1> phi(N_dofs);
+  	phi.setZero();
+  	// Invoke assembly on cells (codim == 0). The element vector provider is
+  	// passed as an argument
+  	AssembleVectorLocally(0, dofh, elvec_provider, phi);
 
-  // Define solution vector
-  Eigen::VectorXd sol_vec = Eigen::VectorXd::Zero(N_dofs);
+  	// Define solution vector
+  	Eigen::VectorXd sol_vec = Eigen::VectorXd::Zero(N_dofs);
 
-  //====================
-  Eigen::SparseLU<Eigen::SparseMatrix<double>,Eigen::COLAMDOrdering<int>> solver;
-  solver.analyzePattern(A_crs);
-  solver.factorize(A_crs);
-  sol_vec = solver.solve(phi);
-  //====================
-  /* SAM_LISTING_END_1 */
+  	//====================
+		Eigen::SparseLU<Eigen::SparseMatrix<double>> solver;
+		solver.analyzePattern(A_crs);
+		solver.factorize(A_crs);
+		sol_vec = solver.solve(phi);
+  	//====================
+  	/* SAM_LISTING_END_1 */
 
-  double solver_error = (A_crs * sol_vec - phi).norm();
-  double solver_relative_error = solver_error / phi.norm();
-  std::cout << "Error of solver: Absolute error = " << solver_error
-            << ", relative error = " << solver_relative_error << std::endl;
+  	double solver_error = (A_crs * sol_vec - phi).norm();
+  	double solver_relative_error = solver_error / phi.norm();
+  	std::cout << "Error of solver: Absolute error = " << solver_error
+  	          << ", relative error = " << solver_relative_error << std::endl;
 
-  // Postprocessing: Compute and output norms of the finite element solution
-  double L2norm = std::sqrt(IntegrateMeshFunction(
-      *mesh_p, squaredNorm(lf::fe::MeshFunctionFE(fe_space, sol_vec)), 2));
-  double H1snorm = std::sqrt(IntegrateMeshFunction(
-      *mesh_p, squaredNorm(lf::fe::MeshFunctionGradFE(fe_space, sol_vec)), 2));
+  	// Postprocessing: Compute and output norms of the finite element solution
+  	double L2norm = std::sqrt(IntegrateMeshFunction(
+  	    *mesh_p, squaredNorm(lf::fe::MeshFunctionFE(fe_space, sol_vec)), 2));
+  	double H1snorm = std::sqrt(IntegrateMeshFunction(
+  	    *mesh_p, squaredNorm(lf::fe::MeshFunctionGradFE(fe_space, sol_vec)), 2));
 
-  std::cout << "Norms of FE solution: L2-norm = " << L2norm
-            << ", H1-seminorm = " << H1snorm << std::endl;
-  return sol_vec;
+  	std::cout << "Norms of FE solution: L2-norm = " << L2norm
+  	          << ", H1-seminorm = " << H1snorm << std::endl;
+  	return sol_vec;
 }
 
 /**
