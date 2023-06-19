@@ -9,6 +9,7 @@
 #ifndef DMXBC_H_
 #define DMXBC_H_
 
+#include "stationarycurrents_supplement.h"
 #include <lf/assemble/assemble.h>
 #include <lf/fe/fe.h>
 #include <lf/io/io.h>
@@ -48,9 +49,8 @@ Eigen::Matrix<double, 2, 3> GradsBaryCoords(
  * recive the id 0, edges belonging to the group "Contact1" get id 1. All other
  * edges are assigned -1.
  */
-std::pair<std::shared_ptr<const lf::mesh::Mesh>,
-          lf::mesh::utils::CodimMeshDataSet<int>>
-readMeshWithTags(std::string filename);
+std::pair<std::shared_ptr<const lf::mesh::Mesh>,lf::mesh::utils::CodimMeshDataSet<int>>
+  readMeshWithTags(std::string filename);
 
 /** @brief Spreading positive edge ids to endpoint nodes
  *
@@ -80,54 +80,54 @@ lf::mesh::utils::CodimMeshDataSet<int> tagNodes(
 /* SAM_LISTING_BEGIN_1 */
 template <typename SIGMAFUNCTOR>
 Eigen::VectorXd solveMixedBVP(
-        std::shared_ptr<const lf::uscalfe::FeSpaceLagrangeO1<double>> fe_space,
-        lf::mesh::utils::CodimMeshDataSet<int> &nodeflags,
-        std::vector<double> &&voltvals, SIGMAFUNCTOR &&sigma) {
-  // Mesh functions for coefficients
-  lf::mesh::utils::MeshFunctionGlobal mf_sigma{sigma};
-  lf::mesh::utils::MeshFunctionConstant<double> mf_gamma{0.0};
-  // Reference to current mesh
-  const lf::mesh::Mesh &mesh{*(fe_space->Mesh())};
-  // Obtain local->global index mapping for current finite element space
-  const lf::assemble::DofHandler &dofh{fe_space->LocGlobMap()};
-  // Dimension of finite element space = number of nodes of the mesh
-  const lf::base::size_type N_dofs(dofh.NumDofs());
-  LF_ASSERT_MSG(N_dofs == mesh.NumEntities(2),
-                " N_dofs must agree with number of nodes");
-  std::cout << "Solving BVP with " << N_dofs << " FE dofs" << std::endl;
-  // Matrix in triplet format holding Galerkin matrix, zero initially.
-  lf::assemble::COOMatrix<double> A(N_dofs, N_dofs);
-  // Right-hand side vector
-  Eigen::VectorXd phi(N_dofs);
-  // Assembly of Galerkin matrix and right-hand side vector plus
-  // special treatment of dofs at contacts
-  //====================
-  lf::uscalfe::ReactionDiffusionElementMatrixProvider<double,
-                                                      decltype(mf_sigma), 
-                                                      decltype(mf_gamma)> 
-                                                      basis_expansion(fe_space,mf_sigma,mf_gamma);
-  lf::assemble::AssembleMatrixLocally(0,dofh,dofh,basis_expansion,A);
-  double contactPoints = voltvals.size();
-  auto selector = [&](auto id)->std::pair<bool,double>{
-    const lf::mesh::Entity &node{dofh.Entity(id)}; // Get the entity of the node
-    int lim = nodeflags(node); // return 1,0 or -1
-    if ((lim >= 0) && (lim < contactPoints)) return {true, voltvals[lim]}; // If nodeflags values are valid return true
-    else return {false, -1.}; 
-  };
-  phi.setZero();
-  lf::assemble::FixFlaggedSolutionComponents<double>(selector,A,phi);
-  //====================
-  // Assembly completed: Convert COO matrix A into CRS format using Eigen's
-  // internal conversion routines.
-  const Eigen::SparseMatrix<double> A_crs = A.makeSparse();
+  std::shared_ptr<const lf::uscalfe::FeSpaceLagrangeO1<double>> fe_space,
+  lf::mesh::utils::CodimMeshDataSet<int> &nodeflags,
+  std::vector<double> &&voltvals, SIGMAFUNCTOR &&sigma) {
+    // Mesh functions for coefficients
+    lf::mesh::utils::MeshFunctionGlobal mf_sigma{sigma};
+    lf::mesh::utils::MeshFunctionConstant<double> mf_gamma{0.0};
+    // Reference to current mesh
+    const lf::mesh::Mesh &mesh{*(fe_space->Mesh())};
+    // Obtain local->global index mapping for current finite element space
+    const lf::assemble::DofHandler &dofh{fe_space->LocGlobMap()};
+    // Dimension of finite element space = number of nodes of the mesh
+    const lf::base::size_type N_dofs(dofh.NumDofs());
+    LF_ASSERT_MSG(N_dofs == mesh.NumEntities(2),
+                  " N_dofs must agree with number of nodes");
+    std::cout << "Solving BVP with " << N_dofs << " FE dofs" << std::endl;
+    // Matrix in triplet format holding Galerkin matrix, zero initially.
+    lf::assemble::COOMatrix<double> A(N_dofs, N_dofs);
+    // Right-hand side vector
+    Eigen::VectorXd phi(N_dofs);
+    phi.setZero();
+    // Assembly of Galerkin matrix and right-hand side vector plus
+    // special treatment of dofs at contacts
+    //====================
+    lf::uscalfe::ReactionDiffusionElementMatrixProvider<double,decltype(mf_sigma),decltype(mf_gamma)>
+                                                       RDEMP(fe_space,mf_sigma,mf_gamma);
+    const int NContacts = voltvals.size();
+    lf::assemble::AssembleMatrixLocally(0,dofh,dofh,RDEMP,A);
+    auto selector = [&](lf::assemble::gdof_idx_t idx) -> std::pair<bool, double> {
+        const lf ::mesh::Entity &node{dofh.Entity(idx)};
+        const int ids = nodeflags(node);
+        if ((ids >= 0) && (ids < NContacts)) {
+          return {true, voltvals[ids]};
+        }
+        return { false , 42.0};
+    };
+    lf::assemble::FixFlaggedSolutionComponents<double>(selector,A,phi);    
+    //====================
+    // Assembly completed: Convert COO matrix A into CRS format using Eigen's
+    // internal conversion routines.
+    const Eigen::SparseMatrix<double> A_crs = A.makeSparse();
 
-  // Solve linear system using Eigen's sparse direct elimination
-  Eigen::SparseLU<Eigen::SparseMatrix<double>> solver;
-  solver.compute(A_crs);  // LU decomposition
-  LF_VERIFY_MSG(solver.info() == Eigen::Success, "LU decomposition failed");
-  Eigen::VectorXd sol_vec = solver.solve(phi);
-  LF_VERIFY_MSG(solver.info() == Eigen::Success, "Solving LSE failed");
-  return sol_vec;
+    // Solve linear system using Eigen's sparse direct elimination
+    Eigen::SparseLU<Eigen::SparseMatrix<double>> solver;
+    solver.compute(A_crs);  // LU decomposition
+    LF_VERIFY_MSG(solver.info() == Eigen::Success, "LU decomposition failed");
+    Eigen::VectorXd sol_vec = solver.solve(phi);
+    LF_VERIFY_MSG(solver.info() == Eigen::Success, "Solving LSE failed");
+    return sol_vec;
 }  // end solveMixedBVP
 
 /* SAM_LISTING_END_1 */
@@ -139,20 +139,34 @@ Eigen::VectorXd solveMixedBVP(
 /* SAM_LISTING_BEGIN_3 */
 template <typename SIGMAFUNCTION>
 double contactFluxMF(
-    std::shared_ptr<const lf::uscalfe::FeSpaceLagrangeO1<double>> fe_space,
-    const Eigen::VectorXd &sol_vec, SIGMAFUNCTION &&sigma,
-    const lf::mesh::utils::CodimMeshDataSet<int> &edgeids, int contact_id = 0) {
-  // The underlying finite element mesh
-  const lf::mesh::Mesh &mesh{*(fe_space->Mesh())};
-  // Variable for summing boundary flux
-  double s = 0.0;
-  // Counter for edges on selected contact
-  unsigned int ed_cnt = 0;
-//====================
-// Your code goes here
-//====================
-  std::cout << "Summed flux for " << ed_cnt << " edges." << std::endl;
-  return s;
+  std::shared_ptr<const lf::uscalfe::FeSpaceLagrangeO1<double>> fe_space,
+  const Eigen::VectorXd &sol_vec, 
+  SIGMAFUNCTION &&sigma,
+  const lf::mesh::utils::CodimMeshDataSet<int> &edgeids, 
+  int contact_id = 0) {
+    // The underlying finite element mesh
+    const lf::mesh::Mesh &mesh{*(fe_space->Mesh())};
+    // Variable for summing boundary flux
+    double s = 0.0;
+    // Counter for edges on selected contact
+    unsigned int ed_cnt = 0;
+    //====================
+    const lf::fe::MeshFunctionGradFE mf_grad(fe_space,sol_vec);
+    lf::mesh::utils::CodimMeshDataSet<Eigen::Vector2d>
+      normals{exteriorEdgeWeightedNormals(fe_space->Mesh())};
+    Eigen::Matrix<double,2,3> A; A << 0.5,0.5,0.,0.,0.5,0.5;
+    unsigned codim = 0;
+    //for(unsigned codim = 0; codim < 3; codim++){
+        for(auto *entity : mesh.Entities(codim)){
+          //  auto grad = getTriangleGradLambdaNormals(A,*entity);
+          auto [grad_bary_coords, normals, area] = getTriangleGradLambdaNormals(
+            lf::geometry::Corners(*(entity->Geometry())));
+
+        }
+    //}
+    //====================
+    std::cout << "Summed flux for " << ed_cnt << " edges." << std::endl;
+    return s;
 }  // end contactFluxMF
 
 /* SAM_LISTING_END_3 */
@@ -160,39 +174,33 @@ double contactFluxMF(
 /* SAM_LISTING_BEGIN_G */
 template <typename SIGMAFUNCTION, typename PSIGRAD>
 double stabFlux(
-    std::shared_ptr<const lf::uscalfe::FeSpaceLagrangeO1<double>> fe_space,
-    const Eigen::VectorXd &sol_vec, SIGMAFUNCTION &&sigma, PSIGRAD &&gradpsi) {
-  // Underlying FE mesh
-  const lf::mesh::Mesh &mesh{*(fe_space->Mesh())};
-  // Local-to-Global map for local/global shape function indices
-  const lf::assemble::DofHandler &dofh{fe_space->LocGlobMap()};
-  // Reference coordinates of "midpoint" of a triangle
-  const Eigen::MatrixXd zeta_ref{
-      (Eigen::Matrix<double, 2, 1>() << 1.0 / 3.0, 1.0 / 3.0).finished()};
-  // Summation variable
-  double s = 0.0;
-  // Loop over all cells
-  for (const lf::mesh::Entity *cell : mesh.Entities(0)) {
-    LF_ASSERT_MSG(cell->RefEl() == lf::base::RefEl::kTria(),
-                  "Not implemented for " << *cell);
-    // Obtain geometry information for entity
-    const lf::geometry::Geometry &geo{*cell->Geometry()};
-    //==================== 
-    auto coordinates = GradsBaryCoords(lf::geometry::Corners(*(cell->Geometry())));
-    // We get the area through the specific function
-    double K = lf::geometry::Volume(geo);
-    // Let's alculate the gradient according to 3.13.11
-    //Eigen::Vector2d quadPoint = (coordinates.col(0)+coordinates.col(1)+coordinates.col(2))/3.;
-    auto globDof{dofh.GlobalDofIndices(*cell)};
-    // We need to access the gradient of u_h according to the global coordinates
-    Eigen::Vector2d locGrad = coordinates*(Eigen::Vector3d() << sol_vec[globDof[0]],sol_vec[globDof[1]],sol_vec[globDof[2]]).finished();
-    // Now we just need to approximate the integral
-    Eigen::MatrixXd zeta{geo.Global(zeta_ref)};
-    auto quadPoint{zeta.col(0)};
-    s += K*(sigma(quadPoint)*locGrad).dot(gradpsi(quadPoint));
-    //====================
-  }
-  return s;
+  std::shared_ptr<const lf::uscalfe::FeSpaceLagrangeO1<double>> fe_space,
+  const Eigen::VectorXd &sol_vec, SIGMAFUNCTION &&sigma, PSIGRAD &&gradpsi) {
+    // Underlying FE mesh
+    const lf::mesh::Mesh &mesh{*(fe_space->Mesh())};
+    // Local-to-Global map for local/global shape function indices
+    const lf::assemble::DofHandler &dofh{fe_space->LocGlobMap()};
+    // Reference coordinates of "midpoint" of a triangle
+    const Eigen::MatrixXd zeta_ref{
+        (Eigen::Matrix<double, 2, 1>() << 1.0 / 3.0, 1.0 / 3.0).finished()
+    };
+    // Summation variable
+    double s = 0.0;
+    // Loop over all cells
+    for (const lf::mesh::Entity *cell : mesh.Entities(0)) {
+        LF_ASSERT_MSG(cell->RefEl() == lf::base::RefEl::kTria(),
+                      "Not implemented for " << *cell);
+        // Obtain geometry information for entity
+        const lf::geometry::Geometry &geo{*cell->Geometry()};
+        //====================
+        
+        auto grad_bary_coords = GradsBaryCoords(
+            lf::geometry::Corners(*(cell->Geometry()))
+        );
+        gradpsi(grad_bary_coords.col(0));
+        //====================
+    }
+    return s;
 }
 /* SAM_LISTING_END_G */
 
