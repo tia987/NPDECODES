@@ -30,19 +30,24 @@ namespace AvgValBoundary {
  */
 /* SAM_LISTING_BEGIN_1 */
 double compH1seminorm(const lf::assemble::DofHandler &dofh,
-                      const Eigen::VectorXd & u) {
-  double result = 0.0;
-  //====================
-  // From 3.1.2 we can see that for computing the gradient (H1 norm) we only need
-  // to have alpha = 1 ^ beta = 0 ^ gamma = 0
-  auto a = [](Eigen::VectorXd)->double{return 1.0;};
-  auto b = [](Eigen::VectorXd)->double{return 0.0;};
-  auto g = [](Eigen::VectorXd)->double{return 0.0;};
-  // After compute the matrix and apply the norm
-  Eigen::SparseMatrix<double> A_crs = compGalerkinMatrix(dofh,a,b,g);
-  result = std::sqrt(u.transpose()*A_crs*u);
-  //====================
-  return result;
+                      const Eigen::VectorXd &u) {
+    double result = 0.0;
+    //====================
+    // Set up the functors
+    auto alpha = [](Eigen::VectorXd x){
+        return 1.;
+    };
+    auto gamma = [](Eigen::VectorXd x){        
+        return 0.;
+    };
+    auto beta = [](Eigen::VectorXd x){
+        return 0.;
+    };
+
+    Eigen::SparseMatrix<double> G = compGalerkinMatrix(dofh,alpha,gamma,beta);
+    result = std::sqrt(u.transpose()*G*u);
+    //====================
+    return result;
 }
 /* SAM_LISTING_END_1 */
 
@@ -94,63 +99,51 @@ std::shared_ptr<lf::refinement::MeshHierarchy> generateTestMeshSequence(
  *	    boundary functional for each level
  */
 /* SAM_LISTING_BEGIN_5 */
-/*std::vector<std::pair<unsigned int, double>> approxBoundaryFunctionalValues(
-    unsigned int L) {
-  std::vector<std::pair<unsigned int, double>> result;
-  //====================
-  // First we generate the meshes from generateTestMeshSequence
-  std::shared_ptr<lf::refinement::MeshHierarchy> gTMS = generateTestMeshSequence(L);
-  // Afterwards we need to compute the values at F(u_l)
-  for(unsigned i = 0; i < L; i++){
-      double f;
-      gTMS->getMesh(i)
-      result.push_back(i,f);
+std::vector<std::pair<unsigned int, double>>
+approxBoundaryFunctionalValues(unsigned int L) {
+    auto meshes = generateTestMeshSequence(L-1);
+    int num_meshes = meshes->NumLevels();
+    std::vector<std::pair<unsigned int, double>> result;
+    //====================
+    //Set up the space
+    for(unsigned level = 0; level < num_meshes; level++){
+        auto mesh_p = meshes->getMesh(level);
+        auto fe_space = std::make_shared<lf::uscalfe::FeSpaceLagrangeO1<double>>(mesh_p);
+        const lf::assemble::DofHandler &dofh{fe_space->LocGlobMap()};
+        const lf::base::size_type N{dofh.NumDofs()};
+
+        // Set up the functors
+        auto alpha = [](Eigen::VectorXd x){
+            return 1.;
+        };
+        auto gamma = [](Eigen::VectorXd x){        
+            return 1.;
+        };
+        auto beta = [](Eigen::VectorXd x){
+            return 0.;
+        };
+
+        Eigen::SparseMatrix<double> G = compGalerkinMatrix(dofh,alpha,gamma,beta);
+
+        auto f = [](Eigen::Vector2d x) -> double { return x.norm(); }; lf::mesh::utils::MeshFunctionGlobal mf_f{f};
+
+        lf::uscalfe::ScalarLoadElementVectorProvider elvec_builder (fe_space,mf_f);
+
+        Eigen::VectorXd phi(N);
+        phi.setZero();
+
+        AssembleVectorLocally(0,dofh,elvec_builder,phi);
+
+        Eigen::SparseLU<Eigen::SparseMatrix<double>> solver;
+        solver.compute(G);
+        Eigen::VectorXd u = solver.solve(phi);
+
+        auto w = [](Eigen::Vector2d x) -> double { return 1.0; };
+        double functional_value = compBoundaryFunctional(dofh , u, w);
+        result.push_back({N, functional_value});
     }
-  }
-  //====================
-  return result;*/
-std::vector<std::pair<unsigned int, double>> approxBoundaryFunctionalValues(
-    unsigned int L) {
-  std::vector<std::pair<unsigned int, double>> result;
-  auto meshes = generateTestMeshSequence(L - 1);
-  int num_meshes = meshes->NumLevels();
-  for (int level = 0; level < num_meshes; ++level) {
-    auto mesh_p = meshes->getMesh(level);
-
-    // Set up global FE space; lowest order Lagrangian finite elements
-    auto fe_space =
-        std::make_shared<lf::uscalfe::FeSpaceLagrangeO1<double>>(mesh_p);
-
-    // Obtain local->global index mapping for current finite element space
-    const lf::assemble::DofHandler &dofh{fe_space->LocGlobMap()};
-    const lf::base::size_type N_dofs(dofh.NumDofs());
-
-    // compute galerkin matrix with alpha = 1.0, gamma = 1.0, beta = 0.0
-    auto const_one = [](Eigen::Vector2d x) -> double { return 1.0; };
-    auto const_zero = [](Eigen::Vector2d x) -> double { return 0.0; };
-    auto A = compGalerkinMatrix(dofh, const_one, const_one, const_zero);
-
-    // compute load vector for f(x) = x.norm()
-    auto f = [](Eigen::Vector2d x) -> double { return x.norm(); };
-    lf::mesh::utils::MeshFunctionGlobal mf_f{f};
-    lf::uscalfe::ScalarLoadElementVectorProvider elvec_builder(fe_space, mf_f);
-    Eigen::VectorXd phi(N_dofs);
-    phi.setZero();
-    AssembleVectorLocally(0, dofh, elvec_builder, phi);
-
-    // solve system of equations
-    Eigen::SparseLU<Eigen::SparseMatrix<double>> solver;
-    solver.compute(A);
-    Eigen::VectorXd u = solver.solve(phi);
-
-    // set up weight function
-    auto w = [](Eigen::Vector2d x) -> double { return 1.0; };
-    double functional_value = compBoundaryFunctional(dofh, u, w);
-
-    result.push_back({N_dofs, functional_value});
-  }
+    //====================
   return result;
-
 }
 /* SAM_LISTING_END_5 */
 
