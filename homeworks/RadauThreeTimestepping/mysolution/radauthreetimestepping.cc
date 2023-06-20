@@ -32,14 +32,16 @@ namespace RadauThreeTimestepping {
 /* SAM_LISTING_BEGIN_1 */
 Eigen::VectorXd rhsVectorheatSource(const lf::assemble::DofHandler &dofh,
                                     double time) {
-  // Dimension of finite element space
-  const lf::uscalfe::size_type N_dofs(dofh.NumDofs());
-  // Right-hand side vector has to be set to zero initially
-  Eigen::VectorXd phi(N_dofs);
-  //====================
-  // Your code goes here
-  //====================
-  return phi;
+    // Dimension of finite element space
+    const lf::uscalfe::size_type N_dofs(dofh.NumDofs());
+    // Right-hand side vector has to be set to zero initially
+    Eigen::VectorXd phi(N_dofs);
+    //====================
+    /*auto FUNCTOR = [](){return 0.;};
+    TrapRuleLinFEElemVecProvider mf_vec(FUNCTOR);
+    lf::assemble::AssembleVectorLocally rhs(0,dofh,mf_vec);*/
+    //====================
+    return phi;
 }
 /* SAM_LISTING_END_1 */
 
