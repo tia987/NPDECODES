@@ -45,6 +45,7 @@ double KineticEnergy(const Eigen::VectorXcd &mu,
   // Your code goes here
   // Replace this dummy value by the kinetic energy
   // of the mesh function assiciated with mu
+  double kin = ;
   return 0.0;
   //====================
 }

@@ -57,9 +57,10 @@ class KineticPropagator : public Propagator {
   Eigen::VectorXcd operator()(const Eigen::VectorXcd &mu) const override;
 
  private:
-  //====================
-  
-  //====================
+    //====================
+    SparseMatrixXcd B_;
+    Eigen::SparseLU<SparseMatrixXcd> solver_;
+    //====================
 };
 
 /** @brief Class for propagation according to the interaction
@@ -85,6 +86,7 @@ class InteractionPropagator : public Propagator {
   //====================
   // Your code goes here
   // Add needed member variables here
+  std::function<std::complex<double>(std::complex<double>)> phase_;
   //====================
 };
 
@@ -119,6 +121,8 @@ class SplitStepPropagator : public Propagator {
   //====================
   // Your code goes here
   // Add needed member variables here
+  KineticPropagator kineticPropagator_;
+  InteractionPropagator interactionPropagator_ ;
   //====================
 };
 /* SAM_LISTING_END_3 */
