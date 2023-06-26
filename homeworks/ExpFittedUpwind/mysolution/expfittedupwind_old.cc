@@ -26,7 +26,14 @@ namespace ExpFittedUpwind {
 double Bernoulli(double tau) {
   double res = 0;
   //====================
-  // Your code goes here
+  double eps = 1e-10;
+  if(tau < eps) return 1.0;
+  else if (std::abs(tau) < 1e-3) {
+    res = 1.0 / (1.0 + (0.5 + 1.0 / 6.0 * tau) * tau);
+  }
+  else {
+    res = tau / (std::exp(tau)-1);
+  }
   //====================
   return res;
 }
@@ -46,7 +53,11 @@ std::shared_ptr<lf::mesh::utils::CodimMeshDataSet<double>> CompBeta(
   // data set over all edges of the mesh.
   auto beta_p = lf::mesh::utils::make_CodimMeshDataSet(fe_space.Mesh(), 1, 1.0);
   //====================
-  // Your code goes here
+  const lf::assemble::DofHandler &dofh {fe_space.LocGlobMap()};
+  for(auto vertex : fe_space.Mesh()->Entities(1)){
+    auto id = dofh.GlobalDofIndices(*vertex);
+    (*beta_p)(*vertex) = std::exp(mu(id[1])) * Bernoulli(mu(id[1])-mu(id[0]));
+  }
   //====================
 
   return beta_p;
@@ -67,7 +78,7 @@ Eigen::Matrix3d ExpFittedEMP::Eval(const lf::mesh::Entity& cell) {
   Eigen::Matrix3d AK = laplace_provider_.Eval(cell).block<3, 3>(0, 0);
   Eigen::Matrix3d result;
   //====================
-  // Your code goes here
+   
   //====================
   return std::move(result);
 }

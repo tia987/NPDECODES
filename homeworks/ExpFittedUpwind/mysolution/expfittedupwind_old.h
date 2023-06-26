@@ -121,7 +121,34 @@ Eigen::VectorXd solveDriftDiffusionDirBVP(
   Eigen::VectorXd sol = Eigen::VectorXd::Ones(N_dofs);
 
   //====================
-  // Your code goes here
+  // For solving, we need to set up a matrix and calculate the sparse inverse
+  // But before we need to assemble the matrix, RHS and set the boundary conditions
+  // through flags
+
+  // Assemble the matrix
+  lf::assemble::COOMatrix<double> A(N_dofs,N_dofs);
+  ExpFittedEMP elmat_builder(fe_space,mu);
+  lf::assemble::AssembleMatrixLocally(0,dofh,dofh,elmat_builder,A);
+
+  // We need to set now the RHS
+  Eigen::VectorXd phi(N_dofs);
+  phi.setZero();
+  lf::uscalfe::ScalarLoadElementVectorProvider<double,decltype(mf_f)> elvec_builder(fe_space,mf_f);
+  lf::assemble::AssembleVectorLocally(0,dofh,elvec_builder,phi);
+
+  // Set the flags
+  auto bd_flags{lf::mesh::utils::flagsEntitiesOnBounday(fe_space->Mesh,1)};
+  const lf::fe::ScalarReferenceFiniteElement<double>* rsf_edge = fe_space->ShapeFunctionLayout(lf::base::RefEl::kSegment());
+
+  // Fetch flags
+  auto bd_flags_val{lf::fe::InitEssentialConditionFromFunction(*fe_space,[&bd_flags](const lf::mesh::Entity& edge)-> bool){return bd_flags(edge);,mf_g}}
+
+  // Solve linear sistem
+  Eigen::SparseMatrix<double> A_crs = A.makeSparse();
+  Eigen::SparseLU<Eigen::SparseMatrix<double>> solver;
+
+  solver.compute(A_crs);
+  sol = solver.solver(phi);
   //====================
 
   return sol;
