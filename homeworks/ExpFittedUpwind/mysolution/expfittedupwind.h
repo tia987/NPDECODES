@@ -110,21 +110,36 @@ class ExpFittedEMP {
 /* SAM_LISTING_BEGIN_4 */
 template <typename FUNC_F, typename FUNC_G>
 Eigen::VectorXd solveDriftDiffusionDirBVP(
-    std::shared_ptr<lf::uscalfe::FeSpaceLagrangeO1<double>> fe_space,
-    const Eigen::VectorXd& mu, FUNC_F&& func_f, FUNC_G&& func_g) {
+  std::shared_ptr<lf::uscalfe::FeSpaceLagrangeO1<double>> fe_space,
+  const Eigen::VectorXd& mu, FUNC_F&& func_f, FUNC_G&& func_g) {
   const lf::assemble::DofHandler& dofh{fe_space->LocGlobMap()};
-  lf::base::size_type N_dofs = dofh.NumDofs();
+    lf::base::size_type N_dofs = dofh.NumDofs();
 
-  lf::mesh::utils::MeshFunctionGlobal mf_f{func_f};
-  lf::mesh::utils::MeshFunctionGlobal mf_g{func_g};
+    lf::mesh::utils::MeshFunctionGlobal mf_f{func_f};
+    lf::mesh::utils::MeshFunctionGlobal mf_g{func_g};
 
-  Eigen::VectorXd sol = Eigen::VectorXd::Ones(N_dofs);
+    Eigen::VectorXd sol = Eigen::VectorXd::Ones(N_dofs);
 
-  //====================
-  // Your code goes here
-  //====================
+    //====================
+		// Create the matrix A and build it locally
+    lf::assemble::COOMatrix<double> A(N_dofs, N_dofs);
+		ExpFittedEMP elmat_builder (fe_space, mu);
+		lf::assemble::AssembleMatrixLocally(0, dofh, dofh, elmat_builder, A);
 
-  return sol;
+		// Construct phi
+		Eigen::VectorXd phi(N_dofs);
+		phi.setZero();
+		lf::uscalfe::ScalarLoadElementVectorProvider<double, decltype(mf_f)> elvec_builder(fe_space, mf_f);
+		lf::assemble::AssembleVectorLocally(0, dofh, elvec_builder, phi);
+
+		// Invert the matrix to solve the system
+		Eigen::SparseMatrix<double>A_crs = A.makeSparse();
+		Eigen::SparseLU<Eigen::SparseMatrix<double>> solver;
+		solver.compute(A_crs);
+		sol = solver.solve(phi);
+    //====================
+
+    return sol;
 }
 /* SAM_LISTING_END_4 */
 

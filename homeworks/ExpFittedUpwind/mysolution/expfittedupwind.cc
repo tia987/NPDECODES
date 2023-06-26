@@ -24,11 +24,17 @@ namespace ExpFittedUpwind {
  **/
 /* SAM_LISTING_BEGIN_1 */
 double Bernoulli(double tau) {
-  double res = 0;
-  //====================
-  // Your code goes here
-  //====================
-  return res;
+    double res = 0;
+    //====================
+    if(tau == 0.){
+        res = 1.;
+    } else if (std::abs(tau) < 1e-3){
+        res = 1.-tau/2.+tau*tau/12.-tau*tau*tau*tau/720.;
+    } else {
+        res = tau/(std::exp(tau)-1);
+    }
+    //====================
+    return res;
 }
 /* SAM_LISTING_END_1 */
 
@@ -41,15 +47,19 @@ double Bernoulli(double tau) {
 /* SAM_LISTING_BEGIN_2 */
 // REVISE: Does not match specification
 std::shared_ptr<lf::mesh::utils::CodimMeshDataSet<double>> CompBeta(
-    const lf::uscalfe::FeSpaceLagrangeO1<double>& fe_space,
-    const Eigen::VectorXd& mu) {
-  // data set over all edges of the mesh.
-  auto beta_p = lf::mesh::utils::make_CodimMeshDataSet(fe_space.Mesh(), 1, 1.0);
-  //====================
-  // Your code goes here
-  //====================
+  const lf::uscalfe::FeSpaceLagrangeO1<double>& fe_space,
+  const Eigen::VectorXd& mu) {
+    // data set over all edges of the mesh.
+    auto beta_p = lf::mesh::utils::make_CodimMeshDataSet(fe_space.Mesh(), 1, 1.0);
 
-  return beta_p;
+    //====================
+    for(auto *entity : fe_space.Mesh()->Entities(1)){
+        auto idxs = fe_space.LocGlobMap().GlobalDofIndices(*entity);
+        (*beta_p)(*entity) = std::exp(mu(idxs[1])) * Bernoulli(mu(idxs[1])-mu(idxs[0]));
+    }    
+    //====================
+
+    return beta_p;
 }
 /* SAM_LISTING_END_2 */
 
@@ -60,16 +70,22 @@ std::shared_ptr<lf::mesh::utils::CodimMeshDataSet<double>> CompBeta(
  */
 /* SAM_LISTING_BEGIN_3 */
 Eigen::Matrix3d ExpFittedEMP::Eval(const lf::mesh::Entity& cell) {
-  LF_VERIFY_MSG(cell.RefEl() == lf::base::RefEl::kTria(),
-                "Only 2D triangles are supported.");
 
-  // Evaluate the element matrix A_K
-  Eigen::Matrix3d AK = laplace_provider_.Eval(cell).block<3, 3>(0, 0);
-  Eigen::Matrix3d result;
-  //====================
-  // Your code goes here
-  //====================
-  return std::move(result);
+    LF_VERIFY_MSG(cell.RefEl() == lf::base::RefEl::kTria(),
+                  "Only 2D triangles are supported.");
+
+    // Evaluate the element matrix A_K
+    Eigen::Matrix3d AK = laplace_provider_.Eval(cell).block<3, 3>(0, 0);
+    Eigen::Matrix3d result;
+    //====================
+    Eigen::Vector3d b = beta_loc(cell);
+    result << AK(0,1)*b(0)+AK(0,2)*b(2), -AK(0,1)*b(0), -AK(0,2)*b(2),
+              -AK(0,1)*b(0), AK(0,1)*b(0)+AK(1,2)*b(1), -AK(1,2)*b(1),
+              -AK(0,2)*b(2), -AK(1,2)*b(1), AK(0,2)*b(2)+AK(1,2)*b(1);
+    Eigen::Vector3d mu_exp = (-mu_loc(cell)).array().exp(); 
+    result *= mu_exp.asDiagonal() ;
+    //====================
+    return std::move(result);
 }
 /* SAM_LISTING_END_3 */
 
