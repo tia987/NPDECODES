@@ -110,7 +110,27 @@ Eigen::VectorXd reaction_step(
     std::shared_ptr<const lf::uscalfe::UniformScalarFESpace<double>> fe_space,
     const Eigen::VectorXd& u0_vector, FUNCTOR c, double tau) {
   //====================
-  // Your code goes here
+  const lf::assemble::DofHandler &dofh {fe_space->LocGlobMap()};
+  auto N_dofs = dofh.NumDofs();
+
+  // Assemble the matrix locally
+  LumpedMassElementMatrixProvider mass_element_matrix_provider_c(c);
+  lf::assemble::COOMatrix<double> A_COO(N_dofs,N_dofs);
+  lf::assemble::AssembleMatrixLocally(0,dofh,dofh,mass_element_matrix_provider_c,A_COO);
+  Eigen::SparseMatrix<double> mass_matrix_c_sparse = A_COO.makeSparse();
+
+  // Assemble the vector locally
+  LumpedMassElementMatrixProvider lumped_mass_element_matrix_provider_1([](Eigen::Vector2d){return 1.0;});
+  lf::assemble::COOMatrix<double> V_COO(N_dofs,N_dofs);
+  lf::assemble::AssembleMatrixLocally(0,dofh,dofh,lumped_mass_element_matrix_provider_1,V_COO);
+  Eigen::SparseMatrix<double> mass_matrix_1_sparse = V_COO.makeSparse();
+  
+  // Now we need to solve the system
+  Eigen::SparseLU<Eigen::SparseMatrix<double>> solver;
+  solver.compute(mass_matrix_1_sparse);
+  Eigen::VectorXd k1 = solver.solve(mass_matrix_c_sparse*u0_vector);
+  Eigen::VectorXd k2 = solver.solve(mass_matrix_c_sparse*(u0_vector+0.5*tau*k1));
+  return u0_vector+tau*k2;
   //====================
   return Eigen::VectorXd::Ones(u0_vector.size());
 }
