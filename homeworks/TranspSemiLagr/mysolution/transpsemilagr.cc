@@ -30,12 +30,23 @@ void enforce_zero_boundary_conditions(
 
 /* SAM_LISTING_BEGIN_1 */
 Eigen::VectorXd solverot(
-    std::shared_ptr<const lf::uscalfe::UniformScalarFESpace<double>> fe_space,
-    Eigen::VectorXd u0_vector, int N, double T) {
-  //====================
-  // Your code goes here
-  //====================
-  return (T + N) * Eigen::VectorXd::Ones(u0_vector.size());
+  std::shared_ptr<const lf::uscalfe::UniformScalarFESpace<double>> fe_space,
+  Eigen::VectorXd u0_vector, int N, double T) {
+
+    //====================
+    auto v = [](const Eigen::VectorXd x){        
+        Eigen::VectorXd y(2);
+        y << -x(1)+3*x(0)*x(0), x(0);
+        return y;
+    };
+    auto uj = semiLagr_step(fe_space, u0_vector, v, T/N);
+    for(unsigned i = 1; i < N; i++){
+        uj = semiLagr_step(fe_space, uj, v, T/N);
+    }
+    return uj;
+    //====================
+
+    return (T + N) * Eigen::VectorXd::Ones(u0_vector.size());
 }
 /* SAM_LISTING_END_1 */
 

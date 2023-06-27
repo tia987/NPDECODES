@@ -107,12 +107,44 @@ Eigen::VectorXd solverot(
 /* SAM_LISTING_BEGIN_1 */
 template <typename FUNCTOR>
 Eigen::VectorXd reaction_step(
-    std::shared_ptr<const lf::uscalfe::UniformScalarFESpace<double>> fe_space,
-    const Eigen::VectorXd& u0_vector, FUNCTOR c, double tau) {
-  //====================
-  // Your code goes here
-  //====================
-  return Eigen::VectorXd::Ones(u0_vector.size());
+	std::shared_ptr<const lf::uscalfe::UniformScalarFESpace<double>> fe_space,
+  const Eigen::VectorXd& u0_vector, FUNCTOR c, double tau) {
+    //====================
+		/*auto mesh = fe_space->Mesh();
+		const lf::assemble::DofHandler &dofh = fe_space->LocGlobMap();
+		const unsigned N_Dofh = dofh.NumDofs();
+
+		// Compute LHS
+		lf::assemble::COOMatrix<double> A(N_Dofh,N_Dofh);
+    lf::assemble::AssembleMatrixLocally(0, dofh, dofh, mf_m, M);
+
+		lf::uscalfe::ReactionDiffusionElementMatrixProvider stiffness_element_matrix_provider (
+        															fe_space, lf::mesh::utils::MeshFunctionConstant(tau),
+        															lf::mesh::utils::MeshFunctionConstant(0.0));
+  	lf::assemble::AssembleMatrixLocally(0, dofh, dofh, stiffness_element_matrix_provider, A);
+
+		// lumped mass matrix A_lm
+  	LumpedMassElementMatrixProvider lumped_mass_element_matrix_provider(
+      	[](Eigen::Vector2d) { 
+						return 1.0; 
+				}
+		);
+  	lf::assemble::AssembleMatrixLocally(0, dofh, dofh, lumped_mass_element_matrix_provider, A);
+
+		// Compute RHS
+		Eigen::VectorXd phi(N_Dofh);
+		phi.setZero();
+    lf::assemble::AssembleVectorLocally(0, dofh, mf_v,phi);
+
+
+		Eigen::SparseMatrix<double> A_crs = A.makeSparse();
+		Eigen::SparseLU<Eigen::SparseMatrix<double>> solver;
+		solver.compute(A);		
+		
+		return solver.solve(phi);*/
+    //====================
+
+    return Eigen::VectorXd::Ones(u0_vector.size());
 }
 /* SAM_LISTING_END_1 */
 
