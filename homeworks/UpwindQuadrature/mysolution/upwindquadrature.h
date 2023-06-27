@@ -69,30 +69,23 @@ class UpwindConvectionElementMatrixProvider {
 /* SAM_LISTING_BEGIN_1 */
 template <typename FUNCTOR>
 Eigen::Matrix3d UpwindConvectionElementMatrixProvider<FUNCTOR>::Eval(
-    const lf::mesh::Entity &entity) {
-  LF_ASSERT_MSG(lf::base::RefEl::kTria() == entity.RefEl(),
-                "Function only defined for triangular cells");
+  const lf::mesh::Entity &entity) {
+    LF_ASSERT_MSG(lf::base::RefEl::kTria() == entity.RefEl(),
+                  "Function only defined for triangular cells");
 
-  const lf::geometry::Geometry *geo_ptr = entity.Geometry();
-  const Eigen::MatrixXd corners = lf::geometry::Corners(*geo_ptr);
-  const double area = lf::geometry::Volume(*geo_ptr);
-  Eigen::Matrix3d loc_mat, grad;
+    const lf::geometry::Geometry *geo_ptr = entity.Geometry();
+    const Eigen::MatrixXd corners = lf::geometry::Corners(*geo_ptr);
+    const double area = lf::geometry::Volume(*geo_ptr);
+    Eigen::Matrix3d loc_mat;
 
-  //====================
-  grad.col(0) = Eigen::Vector3d::Ones();
-  grad.rightCols(2) = corners.transpose();
+    //====================
+    ;
+    ;
+    ;
+    //loc_mat = area*;
+    //====================
 
-  grad = grad.inverse().bottomRows(2);
-
-  std::vector<double> local_masses;
-  for(auto *ent : entity.SubEntities(2)){
-    local_masses.push_back(masses_(*ent));
-  }
-  Eigen::MatrixXd vel(2,3);
-  vel << v_(corners.col(0)), v_(corners.col(1)), v_(corners.col(2));
-  
-  //====================
-  return loc_mat;
+    return loc_mat;
 }
 /* SAM_LISTING_END_1 */
 
