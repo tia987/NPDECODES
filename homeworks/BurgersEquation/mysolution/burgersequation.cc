@@ -20,27 +20,31 @@ double Square(double x) { return x * x; }
 double f(double x) { return 2.0 / 3.0 * std::sqrt(x * x * x); }
 
 Eigen::VectorXd solveBurgersGodunov(double T, unsigned int N) {
-  double h = 5.0 / N;           // meshwidth
-  double tau = h;               // timestep = meshwidth by CFL condition
-  int m = std::round(T / tau);  // no. of timesteps
+    double h = 5.0 / N;           // meshwidth
+    double tau = h;               // timestep = meshwidth by CFL condition
+    int m = std::round(T / tau);  // no. of timesteps
 
-  // initialize vector with initial nodal values
-  Eigen::VectorXd x = Eigen::VectorXd::LinSpaced(N + 1, -1.0, 4.0);
-  Eigen::VectorXd mu =
-    x.unaryExpr([](double x) {
-        return 0.0 <= x && x <= 1.0 ? Square(std::sin(PI * x)) : 0.0;
-      }).eval();
+    // initialize vector with initial nodal values
+    Eigen::VectorXd x = Eigen::VectorXd::LinSpaced(N + 1, -1.0, 4.0);
+    Eigen::VectorXd mu = x.unaryExpr(
+        [](double x) {
+            return 0.0 <= x && x <= 1.0 ? Square(std::sin(PI * x)) : 0.0;
+        }
+    ).eval();
 
-  //====================
-  mu(0) = 0.;
-  for(unsigned j = 0; j < m; j++){
-    for(unsigned i = N; i > 0; i--){
-      mu(i) -= tau/h*(f(mu(i))-f(mu(i-1)));
+    //====================
+
+    auto sin_f = [](Eigen::VectorXd x) -> double {
+        return Square(std::sin(PI * x.norm()));
+    };
+    for(unsigned j = 0; j < m; j++){
+        for(unsigned i = N; i > 0; i--){
+            mu(i) -= tau/h*(std::sqrt(mu(i)*mu(i)*mu(i))*2/3-std::sqrt(mu(i-1)*mu(i-1)*mu(i-1))*2/3);
+        }
     }
-  }
-  //====================
+    //====================
 
-  return mu;
+    return mu;
 }
 /* SAM_LISTING_END_1 */
 
@@ -63,24 +67,20 @@ Eigen::VectorXd reduce(const Eigen::VectorXd &mu, unsigned int N) {
 }
 
 Eigen::Matrix<double, 3, 4> numexpBurgersGodunov() {
-  const unsigned int N_large = 3200;
-  Eigen::Vector2d T{0.3, 3.0};
-  Eigen::Vector4i N{5 * 10, 5 * 20, 5 * 40, 5 * 80};
-  Eigen::Vector4d h;
-  for (int i = 0; i < 4; ++i) h(i) = 5.0 / N(i);
-
-  Eigen::Matrix<double, 3, 4> result;
-  result.row(0) = h.transpose();
-
-  //====================
-  for(unsigned i = 0; i < 2; i++){
-    reduce();
-  }
+    const unsigned int N_large = 3200;
+    Eigen::Vector2d T{0.3, 3.0};
+    Eigen::Vector4i N{5 * 10, 5 * 20, 5 * 40, 5 * 80};
+    Eigen::Vector4d h;
+    for (int i = 0; i < 4; ++i) h(i) = 5.0 / N(i);
   
-
-  //====================
-
-  return result;
+    Eigen::Matrix<double, 3, 4> result;
+    result.row(0) = h.transpose();
+  
+    //====================
+    
+    //====================
+  
+    return result;
 }
 /* SAM_LISTING_END_2 */
 
