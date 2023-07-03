@@ -16,47 +16,52 @@ namespace EngquistOsherNumericalFlux {
 
 /* SAM_LISTING_BEGIN_1 */
 double EngquistOsherNumFlux(double v, double w) {
-  double result;
-  //====================
-  auto Fv = [](double v) { return 0 <= v ? std::cosh(v) - 0.5 : 0.5; };
-  result = Fv(v)+Fv(-w);
-  //====================
-  return result;
+    double result;
+
+    //====================
+    auto f = [](double x){return std::cosh(x);};
+    if(v >= 0 && w >= 0) result = f(v);
+    else if(v < 0 && w >= 0) result = f(0);
+    else if(v >= 0 && w < 0) result = f(v)+f(w)-f(0);
+    else result = f(w);
+    //====================
+
+    return result;
 }
 /* SAM_LISTING_END_1 */
 
 /* SAM_LISTING_BEGIN_2 */
 Eigen::VectorXd solveCP(double a, double b, Eigen::VectorXd u0, double T) {
-  // Find the maximal speed of propagation
-  double A = u0.minCoeff();
-  double B = u0.maxCoeff();
-  double K = std::max(std::abs(std::sinh(A)), std::abs(std::sinh(B)));
-  // Set uniform timestep according to CFL condition
-  int N = u0.size();
-  double h = (b - a) / N;
-  double tau_max = h / K;
-  double timesteps = std::ceil(T / tau_max);
-  double tau = T / timesteps;
+    // Find the maximal speed of propagation
+    double A = u0.minCoeff();
+    double B = u0.maxCoeff();
+    double K = std::max(std::abs(std::sinh(A)), std::abs(std::sinh(B)));
+    // Set uniform timestep according to CFL condition
+    int N = u0.size();
+    double h = (b - a) / N;
+    double tau_max = h / K;
+    double timesteps = std::ceil(T / tau_max);
+    double tau = T / timesteps;
 
-  // Main timestepping loop
-  //====================
-  Eigen::VectorXd mu(N) ;
-  for(unsigned i = 0; i < timesteps; i++){
-    mu.swap(u0);
-    double F_minus;
-    double F_plus = EngquistOsherNumFlux(mu(0),mu(0));
-    for (int j = 0; j < N-1; ++j){
-      F_minus = F_plus;
-      F_plus = EngquistOsherNumFlux(mu(j),mu(j+1));
-      u0(j) = mu(j)-tau/h*(F_plus-F_minus);
+    // Main timestepping loop
+    //====================
+    Eigen::VectorXd mu(N);
+    for(unsigned j = 0; j < timesteps; j++){
+        mu.swap(u0);
+        double Fm;
+        double Fp = EngquistOsherNumFlux(mu(0),mu(0));
+        for(unsigned i = 0; i < N-1; i++){
+            Fm = Fp;
+            Fp = EngquistOsherNumFlux(mu(i),mu(i+1));
+            u0(i) = mu(i)-tau/h*(Fp-Fm);
+        }
+        Fm = Fp;
+        Fp = EngquistOsherNumFlux(mu(N-1),mu(N-1));
+        u0(N-1) = mu(N-1)-tau/h*(Fp-Fm);
     }
-    F_minus = F_plus;
-    F_plus = EngquistOsherNumFlux(mu(N-1),mu(N-1));
-    u0(N-1) = mu(N-1)-tau/h*(F_plus-F_minus);
-  }
-  //====================
+    //====================
 
-  return u0;
+    return u0;
 }
 /* SAM_LISTING_END_2 */
 
