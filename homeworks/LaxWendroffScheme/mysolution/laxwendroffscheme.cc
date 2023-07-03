@@ -28,23 +28,36 @@ constexpr double Square(double x) { return x * x; }
  */
 /* SAM_LISTING_BEGIN_0 */
 Eigen::VectorXd LaxWendroffRhs(const Eigen::VectorXd &mu, double gamma) {
-  int N = mu.size();
-  Eigen::VectorXd result(N);
+    int N = mu.size();
+    Eigen::VectorXd result(N);
 
-  //====================
-  // Your code goes here
-  //====================
+    //====================
+    auto f = [](double x){return std::exp(x);};
+    double gamma2 = gamma*gamma;
+    result(0) = mu(0)-gamma*(f(mu(1))-f(mu(0)))/2.+
+                    gamma2*(f((mu(1)+mu(0))/2.)*f((mu(1)+mu(0))/2.)*(mu(1)-mu(0))-
+                            f((mu(1)+mu(0))/2.)*f((mu(1)+mu(0))/2.)*(mu(1)-mu(0)))/2.;
+    for(unsigned i = 1; i < N-1; i++){
+        result(i) = mu(i)-gamma*(f(mu(i+1))-f(mu(i-1)))/2.+
+                    gamma2*(f((mu(i+1)+mu(i))/2.)*f((mu(i+1)+mu(i))/2.)*(mu(i+1)-mu(i))-
+                            f((mu(i)+mu(i-1))/2.)*f((mu(i)+mu(i-1))/2.)*(mu(i)-mu(i-1)))/2.;
+    }
+    result(N-1) = mu(N-1)-gamma*(f(mu(N-1))-f(mu(N-2)))/2.+
+                gamma2*(f((mu(N-1)+mu(N-2))/2.)*f((mu(N-1)+mu(N-2))/2.)*(mu(N-1)-mu(N-2))-
+                        f((mu(N-1)+mu(N-2))/2.)*f((mu(N-1)+mu(N-2))/2.)*(mu(N-1)-mu(N-2)))/2.;
+    //====================
 
-  return result;
+    return result;
 }
 
-Eigen::VectorXd solveLaxWendroff(const Eigen::VectorXd &u0, double T,
+Eigen::VectorXd solveLaxWendroff(const Eigen::VectorXd &u0, 
+                                 double T,
                                  unsigned int M) {
-  double gamma = 1.0 / Constant::e;
-  Eigen::VectorXd mu = u0;
-  // Main timestepping loop
-  for (int j = 0; j < M; ++j) mu = LaxWendroffRhs(mu, gamma);
-  return mu;
+    double gamma = 1.0 / Constant::e;
+    Eigen::VectorXd mu = u0;
+    // Main timestepping loop
+    for (int j = 0; j < M; ++j) mu = LaxWendroffRhs(mu, gamma);
+    return mu;
 }
 
 /* SAM_LISTING_END_0 */
@@ -60,19 +73,27 @@ Eigen::VectorXd getXValues(double T, unsigned int M) {
   return Eigen::VectorXd::LinSpaced(N, j_min * h, j_max * h);
 }
 Eigen::VectorXd numexpLaxWendroffRP(const Eigen::VectorXi &M) {
-  const double T = 1.0;
-  const int M_size = M.size();
-  Eigen::VectorXd error(M_size);
-  // Initial values for the Riemann problem
-  auto u_initial = [](double x) { return 0.0 <= x ? 1.0 : 0.0; };
-  // Exact solution \prbeqref{eq:solrp} at time $T = 1.0$
-  auto u_exact = [](double x) {
-    return (x <= 1.0) ? 0.0 : ((Constant::e <= x) ? 1.0 : std::log(x));
-  };
-  //====================
-  // Your code goes here
-  //====================
-  return error;
+    const double T = 1.0;
+    const int M_size = M.size();
+    Eigen::VectorXd error(M_size);
+    // Initial values for the Riemann problem
+    auto u_initial = [](double x) { return 0.0 <= x ? 1.0 : 0.0; };
+    // Exact solution \prbeqref{eq:solrp} at time $T = 1.0$
+    auto u_exact = [](double x) {
+      return (x <= 1.0) ? 0.0 : ((Constant::e <= x) ? 1.0 : std::log(x));
+    };
+  
+    //====================    
+    for(unsigned i = 0; i < M_size; i++){
+        Eigen::VectorXd x = getXValues(T, M(i));
+        Eigen::VectorXd u0 = x.unaryExpr(u_initial);
+        auto u_approx = LaxWendroffScheme::solveLaxWendroff(u0, T, M(i));
+        double tau = T/M(i);
+        double h = Constant::e*tau;
+        error(i) = h*(x.unaryExpr(u_exact)-u_approx).lpNorm<1>();
+    }
+    //====================
+    return error;
 }
 /* SAM_LISTING_END_2 */
 
@@ -106,63 +127,96 @@ double smoothU0(double x) {
              : ((1.0 < x) ? 1.0 : Square(std::sin(0.5 * Constant::pi * x)));
 }
 Eigen::VectorXd referenceSolution(const Eigen::VectorXd &x) {
-  double T = 1.0;
-  // Reference solution on a very fine mesh
-  unsigned int M = 3200;
+    double T = 1.0;
+    // Reference solution on a very fine mesh
+    unsigned int M = 3200;
 
-  Eigen::VectorXd y = getXValues(T, M);
-  Eigen::VectorXd u0 = y.unaryExpr(&smoothU0);
-  Eigen::VectorXd u = solveLaxWendroff(u0, T, M);
-  int N = x.size();
-  Eigen::VectorXd u_ref(N);
-  // The vector u is larger than u_ref. Use eval() from above the "evaluate" u
-  // at the positions x(i) and thus obtain the reference solution u_ref.
-  //====================
-  // Your code goes here
-  //====================
-  return u_ref;
+    Eigen::VectorXd y = getXValues(T, M);
+    Eigen::VectorXd u0 = y.unaryExpr(&smoothU0);
+    Eigen::VectorXd u = solveLaxWendroff(u0, T, M);
+    int N = x.size();
+    Eigen::VectorXd u_ref(N);
+    // The vector u is larger than u_ref. Use eval() from above the "evaluate" u
+    // at the positions x(i) and thus obtain the reference solution u_ref.
+    //====================
+    for(unsigned i = 0; i < N; i++){
+        u_ref(i) = eval(u,y,x(i));
+    }      
+    //===================
+    return u_ref;
 }
 /* SAM_LISTING_END_9 */
 
 /* SAM_LISTING_BEGIN_1 */
 Eigen::VectorXd numexpLaxWendroffSmoothU0(const Eigen::VectorXi &M) {
-  const double T = 1.0;
-  const int M_size = M.size();
-  Eigen::VectorXd error(M_size);
+    const double T = 1.0;
+    const int M_size = M.size();
+    Eigen::VectorXd error(M_size);
 
-  //====================
-  // Your code goes here
-  //====================
-  return error;
+     // Initial values for the Riemann problem
+    auto u_initial = [](double x) { 
+        if(x < 0) return 0.;
+        else if(x > 1) return 1.;
+        else return std::sin(M_PI/2.*x)*std::sin(M_PI/2.*x);
+    };
+    // Exact solution \prbeqref{eq:solrp} at time $T = 1.0$
+    
+  
+    //====================
+    //auto u_ref = referenceSolution(u_approx);
+    for(unsigned i = 0; i < M_size; i++){
+        Eigen::VectorXd x = getXValues(T, M(i));
+        Eigen::VectorXd u0 = x.unaryExpr(&smoothU0);
+        auto u_approx = solveLaxWendroff(u0, T, M(i));
+        double tau = T/M(i);
+        double h = Constant::e*tau;
+        error(i) = h*(referenceSolution(x)-u_approx).lpNorm<1>();
+    }
+    //====================
+    
+    return error;
 }
 /* SAM_LISTING_END_1 */
 
 /* SAM_LISTING_BEGIN_7 */
-Eigen::VectorXd solveGodunov(const Eigen::VectorXd &u0, double T,
+Eigen::VectorXd solveGodunov(const Eigen::VectorXd &u0, 
+                             double T,
                              unsigned int M) {
-  double tau = T / M;
-  double h = Constant::e * tau;
-  unsigned int N = u0.size();
-  Eigen::VectorXd mu = u0;
+    double tau = T / M;
+    double h = Constant::e * tau;
+    unsigned int N = u0.size();
+    Eigen::VectorXd mu = u0;
 
-  //====================
-  // Your code goes here
-  //====================
-  return mu;
+    //====================
+    for(unsigned i = 0; i < M; i++){
+        for(unsigned j = N-1; j > 0; j--){
+            mu(j) -= tau/h*(std::exp(mu(j))-std::exp(mu(j-1)));;
+        }
+    }
+    //====================
+    return mu;
 }
 
 /* SAM_LISTING_END_7 */
 
 /* SAM_LISTING_BEGIN_8 */
 Eigen::VectorXd numexpGodunovSmoothU0(const Eigen::VectorXi &M) {
-  const double T = 1.0;
-  const int M_size = M.size();
-  Eigen::VectorXd error(M_size);
+    const double T = 1.0;
+    const int M_size = M.size();
+    Eigen::VectorXd error(M_size);
 
-  //====================
-  // Your code goes here
-  //====================
-  return error;
+    //====================
+    for(unsigned i = 0; i < M_size; i++){
+        Eigen::VectorXd x = getXValues(T, M(i));
+        Eigen::VectorXd u0 = x.unaryExpr(&smoothU0);
+        auto u_approx = solveGodunov(u0, T, M(i));
+        double tau = T/M(i);
+        double h = Constant::e*tau;
+        error(i) = h*(referenceSolution(x)-u_approx).lpNorm<1>();
+    }
+    //====================
+
+    return error;
 }
 /* SAM_LISTING_END_8 */
 
