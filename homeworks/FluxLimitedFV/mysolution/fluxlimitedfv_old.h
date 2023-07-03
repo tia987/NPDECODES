@@ -15,6 +15,8 @@
 
 namespace FluxLimitedFV {
 
+inline double thetaquotient(double u, double v, double w);
+
 /* SAM_LISTING_BEGIN_1 */
 template <typename FLUXLIM = std::function<double(double)>>
 Eigen::VectorXd fluxlimAdvection(
@@ -34,7 +36,12 @@ Eigen::VectorXd fluxlimAdvection(
   // Set initial conditions
   mu = mu0;
   // ========================================
-  // Solution code goes here
+  for(unsigned i = 0; i < nb_timesteps; i++){
+    for(unsigned j = 2; j+1 < N; j++){
+      mu(j) += -beta*gamma*(mu(j)-mu(j-1))-0.5*beta*gamma*(1-beta*gamma)*
+               (thetaquotient(mu(j-1),mu(j),mu(j-1))*(mu(j+1)-mu(j))-thetaquotient(mu(j-2),mu(j-1),mu(j))*(mu(j)-mu(j-1)));
+    }
+  }
   // ========================================
   return mu;
 };
@@ -62,8 +69,14 @@ Eigen::VectorXd fluxlimBurgers(
   auto godnfnburgers = [f](double v, double w) -> double {
     // ========================================
     // Solution code goes here
-    // Replace the following dummy return value:
-    return 0.0;
+    if (v>w){
+      if(v + w > 0) return f(v);
+      else return f(w);
+      } else {
+      if(v > 0) return f(v);
+      else if(0 < w) return 0.0;
+      else return f(w);            
+    }
     // ========================================
   };
 
