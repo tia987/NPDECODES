@@ -192,7 +192,7 @@ int main(int /*argc*/, char** /*argv*/) {
   std::cout << "Generated " CURRENT_BINARY_DIR "/fluxlimBurgers_sol.csv"
             << std::endl;
   std::system("python3 " CURRENT_SOURCE_DIR "/plot_sol.py " CURRENT_BINARY_DIR
-              "/fluxlimBurgers_sol.csv " CURRENT_BINARY_DIR
-              "/fluxlimBurgers_sol.eps");
+              "/fluxlimBurgers_sol.csv " CURRENT_SOURCE_DIR
+              "/fluxlimBurgers_sol.jpg");
 
 }  // main
