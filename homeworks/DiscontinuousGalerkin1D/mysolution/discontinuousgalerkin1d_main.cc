@@ -24,8 +24,13 @@ int main() {
   // Use std::ofstream to write the solution to
   // the file "solution.csv". To plot this file
   // you may uncomment the following line:
-  // std::system("python3 " CURRENT_SOURCE_DIR "/plot_solution.py "
-  // CURRENT_BINARY_DIR "/solution.csv " CURRENT_BINARY_DIR "/solution.eps");
+  std::ofstream file;
+  file.open("solution.csv");
+  file << solution.x_.transpose().format(CSVFormat) << std::endl;;
+  file << solution.u_.transpose().format(CSVFormat) << std::endl;;
+  file.close();
+  std::system("python3 " CURRENT_SOURCE_DIR "/plot_solution.py "
+  CURRENT_BINARY_DIR "/solution.csv " CURRENT_SOURCE_DIR "/solution.jpg");
   //====================
 
   return 0;

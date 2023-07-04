@@ -35,16 +35,49 @@ Eigen::SparseMatrix<double> compBmat(int Ml, int Mr, double h);
  */
 /* SAM_LISTING_BEGIN_1 */
 template <typename FUNCTOR, typename NUMFLUX>
-Eigen::VectorXd G(const Eigen::VectorXd &mu, FUNCTOR &&f, NUMFLUX &&F, int Ml,
-                  int Mr, double h) {
-  const int N_half = (Ml + Mr + 1);
-  const int N = 2 * N_half;
-  Eigen::VectorXd Gvec(N);
-  //====================
-  // Your code goes here
-  // Fill the vector Gvec
-  //====================
-  return Gvec;
+Eigen::VectorXd G(const Eigen::VectorXd &mu,
+                  FUNCTOR &&f, 
+                  NUMFLUX &&F, 
+                  int Ml,
+                  int Mr, 
+                  double h){
+    const int N_half = (Ml + Mr + 1);
+    const int N = 2 * N_half;
+    Eigen::VectorXd Gvec(N);
+
+    //====================
+    double uN_xminus = 0.0;  // since we extend mu to the left by zero
+    double uN_xplus = mu(0) - 0.5 * h * mu(1);
+    double F_old;
+    double F_new = F(uN_xminus, uN_xplus);
+    const double w = h / (2.0 * std::sqrt(3.0));
+  
+    for (int i = 0; i < N_half - 1; ++i) {
+        uN_xminus = mu(2 * i) + 0.5 * h * mu(2 * i + 1);
+        uN_xplus = mu(2 * (i + 1)) - 0.5 * h * mu(2 * (i + 1) + 1);
+        F_old = F_new;
+        F_new = F(uN_xminus, uN_xplus);
+        Gvec(2 * i) = F_new - F_old;
+  
+        double x_minus = mu(2 * i) - w * mu(2 * i + 1);
+        double x_plus = mu(2 * i) + w * mu(2 * i + 1);
+        double I = 0.5 * h * (f(x_minus) + f(x_plus));
+        Gvec(2 * i + 1) = 0.5 * h * (F_new + F_old) - I;
+    }
+  
+    uN_xminus = mu(2 * (N_half - 1)) + 0.5 * h * mu(2 * (N_half - 1) + 1);
+    uN_xplus = 0.0;  // since we extend mu to the right by zero
+    F_old = F_new;
+    F_new = F(uN_xminus, uN_xplus);
+    Gvec(2 * (N_half - 1)) = F_new - F_old;
+  
+    double x_minus = mu(2 * (N_half - 1)) - w * mu(2 * (N_half - 1) + 1);
+    double x_plus = mu(2 * (N_half - 1)) + w * mu(2 * (N_half - 1) + 1);
+    double I = 0.5 * h * (f(x_minus) + f(x_plus));
+    Gvec(2 * (N_half - 1) + 1) = 0.5 * h * (F_new + F_old) - I;
+    //====================
+
+    return Gvec;
 }
 /* SAM_LISTING_END_1 */
 
@@ -62,12 +95,32 @@ Eigen::VectorXd G(const Eigen::VectorXd &mu, FUNCTOR &&f, NUMFLUX &&F, int Ml,
  */
 /* SAM_LISTING_BEGIN_2 */
 template <typename FUNCTOR, typename NUMFLUX>
-Eigen::VectorXd dgcl(Eigen::VectorXd mu0, FUNCTOR &&f, NUMFLUX &&F, double T,
-                     int Ml, int Mr, double h, unsigned int m) {
-  //====================
-  // Your code goes here
-  //====================
-  return mu0;
+Eigen::VectorXd dgcl(Eigen::VectorXd mu0, 
+                     FUNCTOR &&f, 
+                     NUMFLUX &&F, 
+                     double T,
+                     int Ml, int Mr, 
+                     double h, 
+                     unsigned int m){
+
+    //====================
+    Eigen::SparseMatrix<double> B = compBmat(Ml, Mr, h);
+    Eigen::SparseMatrix<double> Binv = B.cwiseInverse();
+
+    auto G_bound = [&f, &F, T, Ml, Mr, h](const Eigen::VectorXd &mu) {
+      return G(mu, std::forward<FUNCTOR>(f), std::forward<NUMFLUX>(F), Ml, Mr, h);
+    };
+    // Timestepping based on explicit midpoint rule, a 2-stage explicit Rune-Kutta
+    // single-step method
+    double tau = T / m;
+    for (int i = 0; i < m; ++i) {
+        // First compute the increment and then update the state vector, see
+        Eigen::VectorXd k = -Binv * G_bound(mu0);
+        mu0 = mu0 - tau * Binv * G_bound(mu0 + 0.5 * tau * k);
+    }
+    //====================
+
+    return mu0;
 }
 /* SAM_LISTING_END_2 */
 
