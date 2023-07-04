@@ -15,22 +15,26 @@ namespace DiscontinuousGalerkin1D {
 
 /* SAM_LISTING_BEGIN_1 */
 Eigen::SparseMatrix<double> compBmat(int Ml, int Mr, double h) {
-  const int N = 2 * (Ml + Mr + 1);
-  Eigen::SparseMatrix<double> A(N, N);
-  //====================
-  // Your code goes here
-  //====================
-  return A;
+    const int N = 2 * (Ml + Mr + 1);
+    Eigen::SparseMatrix<double> A(N, N);
+    //====================
+    A.reserve(Eigen::VectorXi::Ones(N));
+    for (int i = 0; i < N; i += 2) {
+        A.insert(i, i) = h;
+        A.insert(i + 1, i + 1) = h * h * h / 12.0;
+    }
+    //====================
+    return A;
 }
 /* SAM_LISTING_END_1 */
 
 /* SAM_LISTING_BEGIN_2 */
 double Feo(double v, double w) {
-  double result;
-  //====================
-  // Your code goes here
-  //====================
-  return result;
+    double result;
+    //====================
+    
+    //====================
+    return result;
 }
 /* SAM_LISTING_END_2 */
 
