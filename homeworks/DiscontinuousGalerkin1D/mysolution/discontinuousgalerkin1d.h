@@ -152,6 +152,6 @@ struct Solution {
  * with mesh-width h = 0.05, on th time interval [0, 1] with timestep size h
  * / 3. The solution at endtime is written to solution.csv.
  */
-Solution solveTrafficFlow();
+Solution solveTrafficFlow(double T);
 
 }  // namespace DiscontinuousGalerkin1D

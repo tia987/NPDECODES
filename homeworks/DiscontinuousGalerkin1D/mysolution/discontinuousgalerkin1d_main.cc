@@ -13,24 +13,27 @@
 #include "discontinuousgalerkin1d.h"
 
 int main() {
-  DiscontinuousGalerkin1D::Solution solution =
-      DiscontinuousGalerkin1D::solveTrafficFlow();
-
-  const static Eigen::IOFormat CSVFormat(Eigen::FullPrecision,
-                                         Eigen::DontAlignCols, ", ", "\n");
-
-  //====================
-  // Your code goes here
-  // Use std::ofstream to write the solution to
-  // the file "solution.csv". To plot this file
-  // you may uncomment the following line:
   std::ofstream file;
   file.open("solution.csv");
-  file << solution.x_.transpose().format(CSVFormat) << std::endl;;
-  file << solution.u_.transpose().format(CSVFormat) << std::endl;;
+  file << solution.u_.transpose().format(CSVFormat) << std::endl;
+  for(double T = 0; T < 5; T+=0.1){
+      DiscontinuousGalerkin1D::Solution solution =
+          DiscontinuousGalerkin1D::solveTrafficFlow(T);
+
+      const static Eigen::IOFormat CSVFormat(Eigen::FullPrecision,
+                                             Eigen::DontAlignCols, ", ", "\n");
+
+      //====================
+      // Your code goes here
+      // Use std::ofstream to write the solution to
+      // the file "solution.csv". To plot this file
+      // you may uncomment the following line:
+      
+      file << solution.x_.transpose().format(CSVFormat) << std::endl;
+  }
   file.close();
-  std::system("python3 " CURRENT_SOURCE_DIR "/plot_solution.py "
-  CURRENT_BINARY_DIR "/solution.csv " CURRENT_SOURCE_DIR "/solution.jpg");
+  // std::system("python3 " CURRENT_SOURCE_DIR "/plot_solution.py "
+  // CURRENT_BINARY_DIR "/solution.csv " CURRENT_SOURCE_DIR "/solution.jpg");
   //====================
 
   return 0;

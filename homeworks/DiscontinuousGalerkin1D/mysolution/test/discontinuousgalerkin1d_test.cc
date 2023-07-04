@@ -129,7 +129,7 @@ TEST(DiscontinuousGalerkin1D, solveTrafficFlow) {
       0.141124850373491, 0.117652074693168, 0.0944226883068558,
       0.0715337805934138, 0.0491671351972135, 0.0277037926098554;
 
-  DiscontinuousGalerkin1D::Solution solution = solveTrafficFlow();
+  DiscontinuousGalerkin1D::Solution solution = solveTrafficFlow(1.0);
 
   // test for correct length
   ASSERT_EQ(solution.x_.size(), solution.u_.size());

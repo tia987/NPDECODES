@@ -47,7 +47,7 @@ double Feo(double v, double w) {
 /* SAM_LISTING_END_2 */
 
 /* SAM_LISTING_BEGIN_3 */
-Solution solveTrafficFlow() {
+Solution solveTrafficFlow(double T) {
     int Ml = 40;
     int Mr = 40;
     int N_half = Mr + Ml + 1;
@@ -55,7 +55,7 @@ Solution solveTrafficFlow() {
 
     double h = 0.05;
     double tau = h / 3;
-    double T = 1.0;
+    //double T = 1.0;
     unsigned int m = (unsigned int)(T / tau);
 
     //====================
