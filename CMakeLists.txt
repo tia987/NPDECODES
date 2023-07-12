@@ -39,10 +39,10 @@ endif()
 
 # Add switches
 ###############################################################################
-option(HOMEWORKS "usage: cmake -DHOMEWORKS=ON/OFF .." ON)
+option(HOMEWORKS "usage: cmake -DHOMEWORKS=ON/OFF .." OFF)
 message(STATUS "HOMEWORKS ${HOMEWORKS}")
 
-option(DEVELOPERS "usage: cmake -DDEVELOPERS=ON/OFF .." OFF)
+option(DEVELOPERS "usage: cmake -DDEVELOPERS=ON/OFF .." ON)
 message(STATUS "DEVELOPERS ${DEVELOPERS}")
 
 option(LECTURECODES "usage: cmake -DLECTURECODES=ON/OFF .." OFF)
