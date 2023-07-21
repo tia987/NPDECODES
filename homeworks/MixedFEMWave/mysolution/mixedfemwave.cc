@@ -37,19 +37,27 @@ lf::quad::QuadRule make_TriaQR_TrapezoidalRule() {
 
 /* SAM_LISTING_BEGIN_2 */
 Eigen::SparseMatrix<double> computeMQ(const lf::assemble::DofHandler &dofh_Q) {
-  // TOOLS AND DATA
-  // Dimension of finite element space
-  const lf::uscalfe::size_type N_dofs_Q(dofh_Q.NumDofs());
-  // Pointer to current mesh
-  std::shared_ptr<const lf::mesh::Mesh> mesh_p = dofh_Q.Mesh();
-  // Sparse matrix to be returned
-  Eigen::SparseMatrix<double> M_Q(N_dofs_Q, N_dofs_Q);
-  // ASSEMBLY
-  // =============================================
-  // Your code here
-  // =============================================
+    // TOOLS AND DATA
+    // Dimension of finite element space
+    const lf::uscalfe::size_type N_dofs_Q(dofh_Q.NumDofs());
+    // Pointer to current mesh
+    std::shared_ptr<const lf::mesh::Mesh> mesh_p = dofh_Q.Mesh();
+    // Sparse matrix to be returned
+    Eigen::SparseMatrix<double> M_Q(N_dofs_Q, N_dofs_Q);
+    
+    // ASSEMBLY
+    // =============================================
+    lf::assemble::COOMatrix<double> M_Q_COO(N_dofs_Q, N_dofs_Q);
+    for(auto *entity : mesh_p->Entities(0)){
+        const double area = lf::geometry::Volume(*entity->Geometry());
+        auto idx = dofh_Q.GlobalDofIndices(*entity);
+        M_Q_COO.AddToEntry(idx[0],idx[0],area);
+        M_Q_COO.AddToEntry(idx[1],idx[1],area);
+    }
+    M_Q = M_Q_COO.makeSparse();
+    // =============================================
 
-  return M_Q;
+    return M_Q;
 }
 /* SAM_LISTING_END_2 */
 
@@ -64,8 +72,13 @@ Eigen::SparseMatrix<double> computeB(const lf::assemble::DofHandler &dofh_V,
   // Sparse matrix to be returned
   Eigen::SparseMatrix<double> B(N_dofs_Q, N_dofs_V);
 
-  // ========================================
-  // Your code here
+  // ========================================  
+  lf::assemble::COOMatrix<double> B_COO(N_dofs_Q, N_dofs_V);
+  BElemMatProvider B_provider;
+  lf::assemble::AssembleMatrixLocally(0,dofh_V,dofh_Q,B_provider,B_COO);
+  auto bd_flags{lf::mesh::utils::flagEntitiesOnBoundary(mesh_p,2)};
+  B_COO.setZero([&bd_flags,&dofh_V](lf::assemble::gdof_idx_t i, lf::assemble::gdof_idx_t j){return bd_flags(dofh_V.Entity(j));});
+  B = B_COO.makeSparse();
   // ========================================
 
   return B;
@@ -74,18 +87,28 @@ Eigen::SparseMatrix<double> computeB(const lf::assemble::DofHandler &dofh_V,
 
 /* SAM_LISTING_BEGIN_B */
 Eigen::Matrix<double, 2, 3> BElemMatProvider::Eval(
-    const lf::mesh::Entity &tria) {
-  // Obtain vertex coordinates of the triangle in a 2x3 matrix
-  const auto vertices = lf::geometry::Corners(*(tria.Geometry()));
-  LF_ASSERT_MSG((vertices.cols() == 3) && (vertices.rows() == 2),
-                "Invalid vertex coordinate " << vertices.rows() << "x"
-                                             << vertices.cols() << " matrix");
-  // Matrix for returning result
-  Eigen::Matrix<double, 2, 3> elmat;
-  // ========================================
-  // Your code here
-  // ========================================
-  return elmat;
+  const lf::mesh::Entity &tria) {
+    // Obtain vertex coordinates of the triangle in a 2x3 matrix
+    const auto vertices = lf::geometry::Corners(*(tria.Geometry()));
+    LF_ASSERT_MSG((vertices.cols() == 3) && (vertices.rows() == 2),
+                  "Invalid vertex coordinate " << vertices.rows() << "x"
+                                               << vertices.cols() << " matrix");
+
+    // ========================================
+    Eigen::Matrix<double, 2, 3> X;
+    X.block<3,1>(0,0) = Eigen::Vector3d::Ones();
+    std::cout << "______________________________________________________________________________";
+    std::cout << X;
+    std::cout << "______________________________________________________________________________";
+    X.block<3,1>(0,0) = vertices.transpose();
+    std::cout << "______________________________________________________________________________";
+    std::cout << X;
+    std::cout << "______________________________________________________________________________";
+    const double area = 9.5*std::abs(X.determinant());
+    const Eigen::Matrix<double,2,3> grad{X.inverse().block<2,3>(1,0)};
+    // ========================================
+    
+    return area*grad;
 }
 /* SAM_LISTING_END_B */
 

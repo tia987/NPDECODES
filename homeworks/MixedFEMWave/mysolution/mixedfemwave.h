@@ -85,19 +85,25 @@ Eigen::SparseMatrix<double> computeMQ(const lf::assemble::DofHandler &dofh_Q);
 /* SAM_LISTING_BEGIN_6 */
 template <typename RHOFUNCTION>
 Eigen::SparseMatrix<double> computeMV(
-    std::shared_ptr<lf::uscalfe::FeSpaceLagrangeO1<double>> fe_space_V,
-    RHOFUNCTION &&rho) {
-  // TOOLS AND DATA
-  std::shared_ptr<const lf::mesh::Mesh> mesh_p = fe_space_V->Mesh();
-  const lf::assemble::DofHandler &dofh_V{fe_space_V->LocGlobMap()};
-  const lf::uscalfe::size_type N_dofs_V(dofh_V.NumDofs());
-  // For returning the matrix
-  Eigen::SparseMatrix<double> M_V(N_dofs_V, N_dofs_V);
-  // =============================================
-  // Your code here
-  // =============================================
+  std::shared_ptr<lf::uscalfe::FeSpaceLagrangeO1<double>> fe_space_V,
+  RHOFUNCTION &&rho) {
+    // TOOLS AND DATA
+    std::shared_ptr<const lf::mesh::Mesh> mesh_p = fe_space_V->Mesh();
+    const lf::assemble::DofHandler &dofh_V{fe_space_V->LocGlobMap()};
+    const lf::uscalfe::size_type N_dofs_V(dofh_V.NumDofs());
+    // For returning the matrix
+    Eigen::SparseMatrix<double> M_V(N_dofs_V, N_dofs_V);
 
-  return M_V;
+    // =============================================
+    lf::assemble::COOMatrix<double> M_V_COO(N_dofs_V, N_dofs_V);
+    auto alpha = lf::mesh::utils::MeshFunctionGlobal([&rho](Eigen::Vector2d x) -> double {return rho(x);});
+    auto gamma = lf::mesh::utils::MeshFunctionGlobal([](Eigen::Vector2d x) -> double {return 0.;});
+    lf::uscalfe::ReactionDiffusionElementMatrixProvider<double, decltype(gamma), decltype(alpha)> elmat(fe_space_V, gamma, alpha, {{lf::base::RefEl::kTria(),make_TriaQR_TrapezoidalRule()},{lf::base::RefEl::kQuad(),lf::quad::make_QuadQR_P4O4()}});
+    lf::assemble::AssembleMatrixLocally(0, dofh_V, dofh_V, elmat,M_V_COO);
+    M_V = M_V_COO.makeSparse();
+    // =============================================
+
+    return M_V;
 }
 /* SAM_LISTING_END_6 */
 

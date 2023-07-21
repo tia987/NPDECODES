@@ -11,31 +11,40 @@
 namespace HEST {
 /* SAM_LISTING_BEGIN_3 */
 Eigen::VectorXd trfLinToQuad(
-    std::shared_ptr<const lf::uscalfe::FeSpaceLagrangeO1<double>> fes_lin_p,
-    std::shared_ptr<const lf::uscalfe::FeSpaceLagrangeO2<double>> fes_quad_p,
-    const Eigen::VectorXd &mu) {
-  using gdof_idx_t = lf::assemble::gdof_idx_t;
-  // Obtain local-to-global index mappings
-  const lf::assemble::DofHandler &dh_lin{fes_lin_p->LocGlobMap()};
-  const lf::assemble::DofHandler &dh_quad{fes_quad_p->LocGlobMap()};
-  LF_ASSERT_MSG(dh_lin.Mesh() == dh_quad.Mesh(),
-                "DofHandlers must be based on the same mesh");
-  LF_ASSERT_MSG(dh_lin.NumDofs() == mu.size(), "Vector length mismath");
-  // Underlying mesh
-  std::shared_ptr<const lf::mesh::Mesh> mesh_p{dh_lin.Mesh()};
-  const lf::mesh::Mesh &mesh{*mesh_p};
-  LF_ASSERT_MSG(
-      (dh_lin.NumDofs() == mesh.NumEntities(2)) &&
-          (dh_quad.NumDofs() == mesh.NumEntities(2) + mesh.NumEntities(1)),
-      "#DOFs do not match #entities");
-  // The coefficients of a FE function in the quadratic Lagrangian FE space with
-  // respect to the nodal basis are simply its values at the nodes and the
-  // midpoints of the edges.
-  Eigen::VectorXd nu(dh_quad.NumDofs());
-//====================
-// Your code goes here
-//====================
-  return nu;
+  std::shared_ptr<const lf::uscalfe::FeSpaceLagrangeO1<double>> fes_lin_p,
+  std::shared_ptr<const lf::uscalfe::FeSpaceLagrangeO2<double>> fes_quad_p,
+  const Eigen::VectorXd &mu) {
+    using gdof_idx_t = lf::assemble::gdof_idx_t;
+    // Obtain local-to-global index mappings
+    const lf::assemble::DofHandler &dh_lin{fes_lin_p->LocGlobMap()};
+    const lf::assemble::DofHandler &dh_quad{fes_quad_p->LocGlobMap()};
+    LF_ASSERT_MSG(dh_lin.Mesh() == dh_quad.Mesh(),
+                  "DofHandlers must be based on the same mesh");
+    LF_ASSERT_MSG(dh_lin.NumDofs() == mu.size(), "Vector length mismath");
+    // Underlying mesh
+    std::shared_ptr<const lf::mesh::Mesh> mesh_p{dh_lin.Mesh()};
+    const lf::mesh::Mesh &mesh{*mesh_p};
+    LF_ASSERT_MSG(
+        (dh_lin.NumDofs() == mesh.NumEntities(2)) &&
+            (dh_quad.NumDofs() == mesh.NumEntities(2) + mesh.NumEntities(1)),
+        "#DOFs do not match #entities");
+    // The coefficients of a FE function in the quadratic Lagrangian FE space with
+    // respect to the nodal basis are simply its values at the nodes and the
+    // midpoints of the edges.
+    Eigen::VectorXd nu(dh_quad.NumDofs());
+    //====================
+    for(auto *cell : mesh.Entities(2)){
+        nonstd::span<const gdof_idx_t> lf_dof_idx{dh_lin.GlobalDofIndices(*cell)};
+        nonstd::span<const gdof_idx_t> qf_dof_idx{dh_quad.GlobalDofIndices(*cell)};
+        nu[qf_dof_idx[0]] = mu[lf_dof_idx[0]];
+    }
+    for(auto *cell : mesh.Entities(1)){
+        nonstd::span<const gdof_idx_t> lf_dof_idx{dh_lin.GlobalDofIndices(*cell)};
+        nonstd::span<const gdof_idx_t> qf_dof_idx{dh_quad.GlobalDofIndices(*cell)};
+        nu[qf_dof_idx[0]] = 0.5*(mu[lf_dof_idx[0]]+mu[lf_dof_idx[1]]);
+    }
+    //====================
+    return nu;
 }
 /* SAM_LISTING_END_3 */
 

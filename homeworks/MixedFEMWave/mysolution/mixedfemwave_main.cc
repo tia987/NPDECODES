@@ -23,7 +23,7 @@ using namespace MixedFEMWave;
 int main(int /*argc*/, const char ** /*argv*/) {
   std::cout << "\n ****** Problem MixedFEMWave ******" << std::endl;
   // PROBLEM DATA
-  double T = 1.5;
+  double T = 10;
   unsigned int nb_timesteps = T * 500;
   auto f = [](Eigen::Vector2d x, double t) -> double {
     if (std::pow(x(0) - 1.0, 2) + std::pow(x(1) - 2.5, 2) < 0.25) {
