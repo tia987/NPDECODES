@@ -25,60 +25,97 @@ namespace ZienkiewiczZhuEstimator {
 /* Implementing member function Eval of class VectorProjectionMatrixProvider*/
 /* SAM_LISTING_BEGIN_1 */
 Eigen::MatrixXd VectorProjectionMatrixProvider::Eval(
-    const lf::mesh::Entity &entity) {
-  Eigen::MatrixXd elMat_vec;  // element matrix to be returned
-  // Throw error in case cell is not Tria nor Quad
-  LF_VERIFY_MSG(entity.RefEl() == lf::base::RefEl::kTria() ||
-                    entity.RefEl() == lf::base::RefEl::kQuad(),
-                "Unsupported cell type " << entity.RefEl());
+  const lf::mesh::Entity &entity) {
+    Eigen::MatrixXd elMat_vec;  // element matrix to be returned
+    // Throw error in case cell is not Tria nor Quad
+    LF_VERIFY_MSG(entity.RefEl() == lf::base::RefEl::kTria() ||
+                      entity.RefEl() == lf::base::RefEl::kQuad(),
+                  "Unsupported cell type " << entity.RefEl());
 
-  if (entity.RefEl() == lf::base::RefEl::kTria()) {
-    elMat_vec = Eigen::MatrixXd::Zero(6, 6);
-    // For TRIANGULAR CELLS
-    // Compute the area of the triangle cell
-    const double area = lf::geometry::Volume(*(entity.Geometry()));
-    //====================
-    // Your code goes here
-    //====================
-  } else {
-    // for QUADRILATERAL CELLS
-    elMat_vec = Eigen::MatrixXd::Zero(8, 8);
-    Eigen::MatrixXd elMat_scal =
-        Eigen::MatrixXd::Zero(4, 4);  // element matrix for scalar FEM
-    //====================
-    // Your code goes here
-    //====================
-  }
-  return elMat_vec;  // return the local mass element matrix
+    if (entity.RefEl() == lf::base::RefEl::kTria()) {
+        elMat_vec = Eigen::MatrixXd::Zero(6, 6);
+        // For TRIANGULAR CELLS
+        // Compute the area of the triangle cell
+        const double area = lf::geometry::Volume(*(entity.Geometry()));
+        //====================
+        bool chessboard = true;
+        for(unsigned i = 0; i < 6; i++){
+            for(unsigned j = 0; j < 6; j++){
+                if(chessboard == true){
+                    elMat_vec(i,j) = 1;
+                    chessboard = false;
+                } else{
+                    chessboard = true;
+                }
+                if(i == j){
+                   elMat_vec(i,j) += 1;
+                }
+            }
+        }
+        elMat_vec = elMat_vec*area/12.;
+        //====================
+    } else {
+        // for QUADRILATERAL CELLS
+        elMat_vec = Eigen::MatrixXd::Zero(8, 8);
+        Eigen::MatrixXd elMat_scal =
+            Eigen::MatrixXd::Zero(4, 4);  // element matrix for scalar FEM
+        //====================
+        const double area = lf::geometry::Volume(*(entity.Geometry()));
+        bool chessboard = true;
+        for(unsigned i = 0; i < 4; i++){
+            for(unsigned j = 0; j < 4; j++){
+                if(chessboard == true){
+                    elMat_vec(i,j) = 1;
+                    chessboard = false;
+                } else{
+                    chessboard = true;
+                }
+            }
+        }
+        elMat_vec.block(0,0,4,4) = elMat_scal;
+        elMat_vec.block(4,0,4,4) = elMat_scal;
+        elMat_vec.block(0,4,4,4) = elMat_scal;
+        elMat_vec.block(4,4,4,4) = elMat_scal;
+        for(unsigned i = 0; i < 8; i++){
+            elMat_vec(i,i) += 1;
+        }
+        elMat_vec = elMat_vec*area/12.;
+        //====================
+    }
+    return elMat_vec;  // return the local mass element matrix
 }  //
 /* SAM_LISTING_END_1 */
 
 /* Implementing member function Eval of class GradientProjectionVectorProvider*/
 /* SAM_LISTING_BEGIN_2 */
 Eigen::VectorXd GradientProjectionVectorProvider::Eval(
-    const lf::mesh::Entity &entity) {
-  Eigen::VectorXd elVec(6);  // for returning the element vector
-  // Obtain local->global index mapping for current finite element space
-  const lf::assemble::DofHandler &dofh{_fe_space_p->LocGlobMap()};
-  // Obtain global indices of the vertices of the triangle entity
-  auto dof_idx_vec = dofh.GlobalDofIndices(entity);
-  LF_ASSERT_MSG(dofh.NumLocalDofs(entity) == 3,
-                "Too many global indices were returned for a triangle entity!");
+  const lf::mesh::Entity &entity) {
+    Eigen::VectorXd elVec(6);  // for returning the element vector
+    // Obtain local->global index mapping for current finite element space
+    const lf::assemble::DofHandler &dofh{_fe_space_p->LocGlobMap()};
+    // Obtain global indices of the vertices of the triangle entity
+    auto dof_idx_vec = dofh.GlobalDofIndices(entity);
+    LF_ASSERT_MSG(dofh.NumLocalDofs(entity) == 3,
+                  "Too many global indices were returned for a triangle entity!");
 
-  // Obtain the gradients of the barycentric coordinate functions
-  Eigen::Matrix<double, 2, 3> elgrad_Mat = gradbarycoordinates(entity);
-  // Compute the local constant gradient of the finite element solution
-  Eigen::Vector2d grad_vec(0.0, 0.0);
-//====================
-// Your code goes here
-//====================
-  // Assemble local element vector
-  // Compute the area of the triangle cell
-  const double area = lf::geometry::Volume(*(entity.Geometry()));
-//====================
-// Your code goes here
-//====================
-  return elVec;
+    // Obtain the gradients of the barycentric coordinate functions
+    Eigen::Matrix<double, 2, 3> elgrad_Mat = gradbarycoordinates(entity);
+    // Compute the local constant gradient of the finite element solution
+    Eigen::Vector2d grad_vec(0.0, 0.0);
+    
+    //====================
+    ;
+    //====================
+    
+    // Assemble local element vector
+    // Compute the area of the triangle cell
+    const double area = lf::geometry::Volume(*(entity.Geometry()));
+    
+    //====================
+    ;
+    //====================
+    
+    return elVec;
 }  // GradientProjectionVectorProvider::Eval
 /* SAM_LISTING_END_2 */
 
@@ -99,45 +136,46 @@ Eigen::Matrix<double, 2, 3> gradbarycoordinates(
 
 /* SAM_LISTING_BEGIN_3 */
 Eigen::VectorXd computeLumpedProjection(
-    const lf::assemble::DofHandler &scal_dofh, const Eigen::VectorXd &mu,
-    const lf::assemble::DofHandler &vec_dofh) {
-  // Obtain shared_ptr to mesh
-  std::shared_ptr<const lf::mesh::Mesh> mesh_p = scal_dofh.Mesh();
-  // Dimension of vector-valued finite element space
-  const lf::uscalfe::size_type N_vec_dofs(vec_dofh.NumDofs());
-  // Initialize vector FE basis expansion coefficient vector with zeros
-  Eigen::VectorXd proj_vec(N_vec_dofs);
-  proj_vec.setZero();
-  // Initialize temporary helper nodal DataSet (codim 2)
-  auto nodal_sum_of_areas =
-      lf::mesh::utils::CodimMeshDataSet<double>(mesh_p, 2, 0.0);
+  const lf::assemble::DofHandler &scal_dofh, 
+  const Eigen::VectorXd &mu,
+  const lf::assemble::DofHandler &vec_dofh) {
+    // Obtain shared_ptr to mesh
+    std::shared_ptr<const lf::mesh::Mesh> mesh_p = scal_dofh.Mesh();
+    // Dimension of vector-valued finite element space
+    const lf::uscalfe::size_type N_vec_dofs(vec_dofh.NumDofs());
+    // Initialize vector FE basis expansion coefficient vector with zeros
+    Eigen::VectorXd proj_vec(N_vec_dofs);
+    proj_vec.setZero();
+    // Initialize temporary helper nodal DataSet (codim 2)
+    auto nodal_sum_of_areas =
+        lf::mesh::utils::CodimMeshDataSet<double>(mesh_p, 2, 0.0);
 
-  // Loop over the triangular cells of the mesh in the spirit of
-  // cell oriented assembly
-  for (const lf::mesh::Entity *cell : mesh_p->Entities(0)) {
-    LF_VERIFY_MSG(cell->RefEl() == lf::base::RefEl::kTria(),
-                  "Unsupported cell type " << cell->RefEl());
-    // Obtain global scalar-FE indices of the vertices
-    const auto scal_dof_idx_vec = scal_dofh.GlobalDofIndices(*cell);
-    // Obtain the gradients of the barycentric coordinate functions
-    const Eigen::Matrix<double, 2, 3> elgrad_Mat = gradbarycoordinates(*cell);
-    // Obtain area of the triangular cell
-    const double area = lf::geometry::Volume(*(cell->Geometry()));
-// Compute the gradient of the passed coefficient vector
-//====================
-// Your code goes here
-//====================
-  }
+    // Loop over the triangular cells of the mesh in the spirit of
+    // cell oriented assembly
+    for (const lf::mesh::Entity *cell : mesh_p->Entities(0)) {
+        LF_VERIFY_MSG(cell->RefEl() == lf::base::RefEl::kTria(),
+                      "Unsupported cell type " << cell->RefEl());
+        // Obtain global scalar-FE indices of the vertices
+        const auto scal_dof_idx_vec = scal_dofh.GlobalDofIndices(*cell);
+        // Obtain the gradients of the barycentric coordinate functions
+        const Eigen::Matrix<double, 2, 3> elgrad_Mat = gradbarycoordinates(*cell);
+        // Obtain area of the triangular cell
+        const double area = lf::geometry::Volume(*(cell->Geometry()));
 
-  // Scaling of components of vector of dofs
-  for (const lf::mesh::Entity *node : mesh_p->Entities(2)) {
-    LF_VERIFY_MSG(node->RefEl() == lf::base::RefEl::kPoint(),
-                  "Expected kPoint type!" << node->RefEl());
-//====================
-// Your code goes here
-//====================
-  }
-  return proj_vec;
+        // Compute the gradient of the passed coefficient vector
+        //====================
+        //====================
+
+    }
+
+    // Scaling of components of vector of dofs
+    for (const lf::mesh::Entity *node : mesh_p->Entities(2)) {
+        LF_VERIFY_MSG(node->RefEl() == lf::base::RefEl::kPoint(),
+                      "Expected kPoint type!" << node->RefEl());
+        //====================
+        //====================
+    }
+    return proj_vec;
 };  // computeLumpedProjection
 
 /* SAM_LISTING_END_3 */

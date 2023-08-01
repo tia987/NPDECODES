@@ -14,14 +14,22 @@ namespace ConsLawWithSource {
 
 /* SAM_LISTING_BEGIN_1 */
 double godnfn(double v, double w) {
-  auto f = [](double u) { return std::exp(u) - u; };
+    auto f = [](double u) { return std::exp(u) - u; };
 
-  //====================
-  // Your code goes here
-  // Replace the dummy return value below
-
-  return 0.0;
-  //====================
+    //====================
+    // Your code goes here
+    // Replace the dummy return value below
+    auto fd = [](double u) { return std::exp(u) - 1; };
+    if (v < w) {
+        if (0.0 < v)
+            return f(v); 
+        if (w < 0.0)
+            return f(w) ;
+        return 1.0; //=f(0.0)
+    } else {
+        return f(w) < f(v) ? f(v) : f(w);
+    }
+    //====================    
 }
 /* SAM_LISTING_END_1 */
 

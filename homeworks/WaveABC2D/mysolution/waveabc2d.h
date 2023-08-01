@@ -30,7 +30,9 @@ void testConvergenceScalarImplicitTimestepping();
 template <typename FUNC_ALPHA, typename FUNC_BETA, typename FUNC_GAMMA>
 lf::assemble::COOMatrix<double> computeGalerkinMat(
     const std::shared_ptr<lf::uscalfe::FeSpaceLagrangeO1<double>> &fe_space_p,
-    FUNC_ALPHA alpha, FUNC_GAMMA gamma, FUNC_BETA beta) {
+    FUNC_ALPHA alpha, 
+    FUNC_GAMMA gamma, 
+    FUNC_BETA beta) {
   // Pointer to current mesh
   std::shared_ptr<const lf::mesh::Mesh> mesh_p = fe_space_p->Mesh();
   // Obtain local->global index mapping for current finite element space
@@ -128,9 +130,15 @@ class WaveABC2DTimestepper {
   unsigned int M_;    // nb of steps
   double step_size_;  // time inverval
   std::shared_ptr<lf::uscalfe::FeSpaceLagrangeO1<double>> fe_space_p_;
-//====================
-// Your code goes here
-//====================
+
+  //====================
+  lf::assemble::DofHandler &dofh;
+  std::shared_ptr<const lf::mesh::Mesh> &mesh;
+  unsigned N_dofh;
+  // lf::mesh::utils::MeshFunctionGlobal alpha;
+  // lf::mesh::utils::MeshFunctionGlobal gamma;
+  //====================
+
 };  // class WaveABC2DTimestepper
 /* SAM_LISTING_END_9 */
 
@@ -138,22 +146,27 @@ class WaveABC2DTimestepper {
 /* SAM_LISTING_BEGIN_1 */
 template <typename FUNC_RHO, typename FUNC_MU0, typename FUNC_NU0>
 WaveABC2DTimestepper<FUNC_RHO, FUNC_MU0, FUNC_NU0>::WaveABC2DTimestepper(
-    const std::shared_ptr<lf::uscalfe::FeSpaceLagrangeO1<double>> &fe_space_p,
-    FUNC_RHO rho, unsigned int M, double T)
-
-    : fe_space_p_(fe_space_p), M_(M), T_(T), step_size_(T / M) {
-  /* Creating coefficient-functions as Lehrfem++ mesh functions */
-  // Coefficient-functions used in the class template
-  // ReactionDiffusionElementMatrixProvider and MassEdgeMatrixProvider
-  auto rho_mf = lf::mesh::utils::MeshFunctionGlobal(rho);
-  auto zero_mf = lf::mesh::utils::MeshFunctionGlobal(
+  const std::shared_ptr<lf::uscalfe::FeSpaceLagrangeO1<double>> &fe_space_p,
+  FUNC_RHO rho, 
+  unsigned int M, 
+  double T) : fe_space_p_(fe_space_p), M_(M), T_(T), step_size_(T / M) {
+    /* Creating coefficient-functions as Lehrfem++ mesh functions */
+    // Coefficient-functions used in the class template
+    // ReactionDiffusionElementMatrixProvider and MassEdgeMatrixProvider
+    auto rho_mf = lf::mesh::utils::MeshFunctionGlobal(rho);
+    auto zero_mf = lf::mesh::utils::MeshFunctionGlobal(
       [](Eigen::Vector2d) -> double { return 0.0; });
-  auto one_mf = lf::mesh::utils::MeshFunctionGlobal(
+    auto one_mf = lf::mesh::utils::MeshFunctionGlobal(
       [](Eigen::Vector2d) -> double { return 1.0; });
 
-//====================
-// Your code goes here
-//====================
+    //====================
+    dofh = fe_space_p->LocGlobMap();
+    mesh = dofh.Mesh();
+    N_dofh = dofh.NumDofs();
+    // alpha = one_mf;
+    // gamma = zero_mf;
+    //====================
+
 }
 /* SAM_LISTING_END_1 */
 
@@ -172,9 +185,35 @@ Eigen::VectorXd WaveABC2DTimestepper<FUNC_RHO, FUNC_MU0,
   Eigen::VectorXd nu0_nodal = lf::fe::NodalProjection(*fe_space_p_, mf_nu0);
   Eigen::VectorXd mu0_nodal = lf::fe::NodalProjection(*fe_space_p_, mf_mu0);
 
-//====================
-// Your code goes here
-//====================
+  //====================
+  auto zero_mf = lf::mesh::utils::MeshFunctionGlobal(
+      [](Eigen::Vector2d) -> double { return 0.0; });
+  auto one_mf = lf::mesh::utils::MeshFunctionGlobal(
+      [](Eigen::Vector2d) -> double { return 1.0; });
+  auto rho_mf = lf::mesh::utils::MeshFunctionGlobal(rho);
+  // First build A_COO
+  lf::assemble::COOMatrix<double> A_COO = computeGalerkinMat(fe_space_p_,one_mf,zero_mf,zero_mf);
+  Eigen::SparseMatrix<double> A(N_dofh,N_dofh);
+
+  // Then build M_COO
+  lf::assemble::COOMatrix<double> M_COO = computeGalerkinMat(fe_space_p_,zero_mf,rho_mf,zero_mf);
+  Eigen::SparseMatrix<double> M(N_dofh,N_dofh);
+
+  // And finally B_COO
+  lf::assemble::COOMatrix<double> B_COO = computeGalerkinMat(fe_space_p_,zero_mf,zero_mf,one_mf);
+  Eigen::SparseMatrix<double> B(N_dofh,N_dofh);
+
+  A = A_COO.makeSparse();
+  M = M_COO.makeSparse();
+  B = B_COO.makeSparse();
+
+  // Solve rhs
+  Eigen::SparseLU<Eigen::SparseMatrix<double>> solver;
+  // solver.compute(A+B+C);  
+
+  // sol = solver.solve();
+
+  //====================
 
   return sol;
 }  // solveWaveABC2D

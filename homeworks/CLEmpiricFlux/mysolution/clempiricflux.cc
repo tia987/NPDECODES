@@ -52,11 +52,22 @@ GodunovFlux::GodunovFlux(const UniformCubicSpline &f) : _f(f){};
 
 /* SAM_LISTING_BEGIN_9 */
 double GodunovFlux::operator()(double v, double w) const {
-  double result;
-  //====================
-  // Your code goes here
-  //====================
-  return result;
+    double result;
+    //====================
+    if(v < w){
+        return std::max(_f(v),_f(w));
+    } else {
+      if(_f.derivative(v) > 0){
+          return _f(v);
+      } else if(_f.derivative(w) < 0){
+          return _f(w);
+      } else {
+          auto df = [this](double x){ return _f.derivative(x);};
+          return findRoots(v,w,df);
+      }
+    }
+    //====================
+    return result;
 }
 
 /* SAM_LISTING_END_9 */

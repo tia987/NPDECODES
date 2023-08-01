@@ -9,6 +9,7 @@
 #ifndef DMXBC_H_
 #define DMXBC_H_
 
+#include "stationarycurrents_supplement.h"
 #include <lf/assemble/assemble.h>
 #include <lf/fe/fe.h>
 #include <lf/io/io.h>
@@ -48,9 +49,8 @@ Eigen::Matrix<double, 2, 3> GradsBaryCoords(
  * recive the id 0, edges belonging to the group "Contact1" get id 1. All other
  * edges are assigned -1.
  */
-std::pair<std::shared_ptr<const lf::mesh::Mesh>,
-          lf::mesh::utils::CodimMeshDataSet<int>>
-readMeshWithTags(std::string filename);
+std::pair<std::shared_ptr<const lf::mesh::Mesh>,lf::mesh::utils::CodimMeshDataSet<int>>
+  readMeshWithTags(std::string filename);
 
 /** @brief Spreading positive edge ids to endpoint nodes
  *
@@ -99,22 +99,26 @@ Eigen::VectorXd solveMixedBVP(
     lf::assemble::COOMatrix<double> A(N_dofs, N_dofs);
     // Right-hand side vector
     Eigen::VectorXd phi(N_dofs);
-
+    phi.setZero();
     // Assembly of Galerkin matrix and right-hand side vector plus
     // special treatment of dofs at contacts
     //====================
-    lf::uscalfe::ReactionDiffusionElementMatrixProvider<double,decltype(mf_sigma),decltype(mf_gamma)> builder(fe_space,mf_sigma,mf_gamma);
-    lf::assemble::AssembleMatrixLocally (0,dofh,dofh,builder,A);
-     auto selector = [&](lf::assemble::gdof_idx_t idx) -> std::pair<bool, double> { const lf::mesh::Entity &node{dofh.Entity(idx)};
-        const int ids = nodeflags (node) ;
-        if ((ids >= 0) && (ids < voltvals.size())) return { true , voltvals [ ids ] } ;
+    lf::uscalfe::ReactionDiffusionElementMatrixProvider<double,decltype(mf_sigma),decltype(mf_gamma)>
+                                                       RDEMP(fe_space,mf_sigma,mf_gamma);
+    const int NContacts = voltvals.size();
+    lf::assemble::AssembleMatrixLocally(0,dofh,dofh,RDEMP,A);
+    auto selector = [&](lf::assemble::gdof_idx_t idx) -> std::pair<bool, double> {
+        const lf ::mesh::Entity &node{dofh.Entity(idx)};
+        const int ids = nodeflags(node);
+        if ((ids >= 0) && (ids < NContacts)) {
+          return {true, voltvals[ids]};
+        }
         return { false , 42.0};
     };
-    lf::assemble::FixFlaggedSolutionComponents<double>(selector,A,phi);
+    lf::assemble::FixFlaggedSolutionComponents<double>(selector,A,phi);    
     //====================
-
     // Assembly completed: Convert COO matrix A into CRS format using Eigen's
-    // internal conversion routines. 
+    // internal conversion routines.
     const Eigen::SparseMatrix<double> A_crs = A.makeSparse();
 
     // Solve linear system using Eigen's sparse direct elimination
@@ -136,8 +140,10 @@ Eigen::VectorXd solveMixedBVP(
 template <typename SIGMAFUNCTION>
 double contactFluxMF(
   std::shared_ptr<const lf::uscalfe::FeSpaceLagrangeO1<double>> fe_space,
-  const Eigen::VectorXd &sol_vec, SIGMAFUNCTION &&sigma,
-  const lf::mesh::utils::CodimMeshDataSet<int> &edgeids, int contact_id = 0) {
+  const Eigen::VectorXd &sol_vec, 
+  SIGMAFUNCTION &&sigma,
+  const lf::mesh::utils::CodimMeshDataSet<int> &edgeids, 
+  int contact_id = 0) {
     // The underlying finite element mesh
     const lf::mesh::Mesh &mesh{*(fe_space->Mesh())};
     // Variable for summing boundary flux
@@ -145,7 +151,19 @@ double contactFluxMF(
     // Counter for edges on selected contact
     unsigned int ed_cnt = 0;
     //====================
-    ;
+    const lf::fe::MeshFunctionGradFE mf_grad(fe_space,sol_vec);
+    lf::mesh::utils::CodimMeshDataSet<Eigen::Vector2d>
+      normals{exteriorEdgeWeightedNormals(fe_space->Mesh())};
+    Eigen::Matrix<double,2,3> A; A << 0.5,0.5,0.,0.,0.5,0.5;
+    unsigned codim = 0;
+    //for(unsigned codim = 0; codim < 3; codim++){
+        for(auto *entity : mesh.Entities(codim)){
+          //  auto grad = getTriangleGradLambdaNormals(A,*entity);
+          auto [grad_bary_coords, normals, area] = getTriangleGradLambdaNormals(
+            lf::geometry::Corners(*(entity->Geometry())));
+
+        }
+    //}
     //====================
     std::cout << "Summed flux for " << ed_cnt << " edges." << std::endl;
     return s;
@@ -164,7 +182,8 @@ double stabFlux(
     const lf::assemble::DofHandler &dofh{fe_space->LocGlobMap()};
     // Reference coordinates of "midpoint" of a triangle
     const Eigen::MatrixXd zeta_ref{
-        (Eigen::Matrix<double, 2, 1>() << 1.0 / 3.0, 1.0 / 3.0).finished()};
+        (Eigen::Matrix<double, 2, 1>() << 1.0 / 3.0, 1.0 / 3.0).finished()
+    };
     // Summation variable
     double s = 0.0;
     // Loop over all cells
@@ -174,7 +193,11 @@ double stabFlux(
         // Obtain geometry information for entity
         const lf::geometry::Geometry &geo{*cell->Geometry()};
         //====================
-        //auto vertex = getTriangleGradLambdaNormals();
+        
+        auto grad_bary_coords = GradsBaryCoords(
+            lf::geometry::Corners(*(cell->Geometry()))
+        );
+        gradpsi(grad_bary_coords.col(0));
         //====================
     }
     return s;

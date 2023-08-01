@@ -40,12 +40,24 @@ double godnfn(double v, double w);
 template <typename FunctionF, typename SourceFunction>
 Eigen::VectorXd fluxdiffsource(const Eigen::VectorXd &mu, FunctionF &&F,
                                SourceFunction &&s, double h) {
-  //====================
-  // ADAPT THE CODE below so that it handels the source function s correctly
-  //====================
+    
+    unsigned n = mu.size();                         // length of state vector
+    Eigen::VectorXd fd = Eigen::VectorXd::Zero(n);  // return vector
+    //====================
+    // ADAPT THE CODE below so that it handels the source function s correctly
+    // constant continuation of data for \Blue{$x\leq a$}!
+    fd[0] = F(mu[0], mu[1]) - F(mu[0], mu[0]) - h*s(mu[0]);
+    for (unsigned j = 1; j < n - 1; ++j) {
+        fd[j] = F(mu[j], mu[j + 1]) - F(mu[j - 1], mu[j]) - h*s(mu[j]);  // see \eqref{eq:2pcf}
+    }
+    // constant continuation of data for \Blue{$x\geq b$}!
+    fd[n - 1] = F(mu[n - 1], mu[n - 1]) - F(mu[n - 2], mu[n - 1]) - h*s(mu[n-1]);
+    // Efficient thanks to return value optimization (RVO)
+    return fd;    
+    //====================
 
-  unsigned n = mu.size();                         // length of state vector
-  Eigen::VectorXd fd = Eigen::VectorXd::Zero(n);  // return vector
+  //unsigned n = mu.size();                         // length of state vector
+  //Eigen::VectorXd fd = Eigen::VectorXd::Zero(n);  // return vector
 
   // constant continuation of data for \Blue{$x\leq a$}!
   fd[0] = F(mu[0], mu[1]) - F(mu[0], mu[0]);
@@ -73,21 +85,39 @@ Eigen::VectorXd fluxdiffsource(const Eigen::VectorXd &mu, FunctionF &&F,
 /* SAM_LISTING_BEGIN_2 */
 template <typename U0Functor>
 Eigen::VectorXd traceMass(U0Functor &&u0, unsigned int N) {
-  // Spacial boundaries
-  double a = -5.0;
-  double b = 10.0;
+    // Spacial boundaries
+    double a = -5.0;
+    double b = 10.0;
 
-  // Compute \Blue{$\mu(t=0)$}
-  Eigen::VectorXd x = Eigen::VectorXd::LinSpaced(N, a, b);
-  Eigen::VectorXd mu = x.unaryExpr(std::forward<U0Functor>(u0));
+    // Compute \Blue{$\mu(t=0)$}
+    Eigen::VectorXd x = Eigen::VectorXd::LinSpaced(N, a, b);
+    Eigen::VectorXd mu = x.unaryExpr(std::forward<U0Functor>(u0));
 
-  //====================
-  // Your code goes here.
-  // Replace the dummy return value below by the vector of
-  // approximatons of the total mass for the nodes of the
-  // temporal mesh.
-  return Eigen::VectorXd::Zero(42);
-  //====================
+    //====================
+    // Your code goes here.
+    // Replace the dummy return value below by the vector of
+    // approximatons of the total mass for the nodes of the
+    // temporal mesh.
+
+    // calculate stepsize
+    double h = (a-b)/N;
+    double T = 3.0;
+    double s_max = std::exp(1.)-1.;
+    double tau = h/s_max;
+    double M = std::ceil(T/tau);
+    tau = 3./M;
+    Eigen::VectorXd m(M+1);
+    auto totalMass = [h](const Eigen::VectorXd &mu) {return (mu*h).sum();};
+    for(unsigned i = 0; i < N; i++){
+        m(i) = totalMass(mu);
+        auto s = [](double u) {return -u;};
+        mu -= tau*fluxdiffsource(mu,&godnfn,s,h)/h;
+    }
+    m(M) = totalMass(mu);
+    return m;
+    //====================
+    
+    return Eigen::VectorXd::Zero(42);
 }
 /* SAM_LISTING_END_2 */
 

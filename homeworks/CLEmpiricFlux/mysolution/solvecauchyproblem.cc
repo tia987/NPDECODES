@@ -17,10 +17,12 @@ namespace CLEmpiricFlux {
 
 /* SAM_LISTING_BEGIN_1 */
 Eigen::Vector2d findSupport(const UniformCubicSpline &f,
-                            Eigen::Vector2d initsupp, double t) {
+                            Eigen::Vector2d initsupp,
+                            double t) {
   Eigen::Vector2d result;
   //====================
-  // Your code goes here
+  Eigen::Vector2d speed = {f.derivative(-1.),f.derivative(1.)};
+  result = initsupp+t*speed;  
   //====================
   return result;
 }
@@ -43,9 +45,15 @@ Eigen::VectorXd semiDiscreteRhs(const Eigen::VectorXd &mu0, double h,
 template <typename FUNCTOR>
 Eigen::VectorXd RalstonODESolver(FUNCTOR &&rhs, Eigen::VectorXd mu0, double tau,
                                  int n) {
+  
   //====================
-  // Your code goes here
+  for(unsigned i = 0; i < n; i++){
+    auto k1 = rhs(mu0);
+    auto k2 = rhs(mu0+tau*k1*(2/3.));
+    mu0 = mu0+tau*(k1*1/4.+k2*3/4.);
+  }
   //====================
+  
   return mu0;
 }
 /* SAM_LISTING_END_3 */
@@ -54,11 +62,19 @@ Eigen::VectorXd RalstonODESolver(FUNCTOR &&rhs, Eigen::VectorXd mu0, double tau,
 Eigen::VectorXd solveCauchyProblem(const UniformCubicSpline &f,
                                    const Eigen::VectorXd &mu0, double h,
                                    double T) {
-  Eigen::VectorXd muT(mu0.size());
-  //====================
-  // Your code goes here
-  //====================
-  return muT;
+    Eigen::VectorXd muT(mu0.size());
+
+    //====================
+    double tau = std::min(h / std::abs(f.derivative(-1.0)), h / std::abs(f.derivative(1.0)));
+    GodunovFlux GF(f);
+    double n = (int)std::floor(T/tau);
+    auto rhs = [h, &GF](Eigen::VectorXd mu){
+        return semiDiscreteRhs(mu, h, GF);
+    };
+    muT = RalstonODESolver(rhs, mu0, tau, n);
+    //====================
+
+    return muT;
 }
 /* SAM_LISTING_END_4 */
 

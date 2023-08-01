@@ -11,7 +11,7 @@ namespace BoundaryWave {
 
 /* SAM_LISTING_BEGIN_1 */
 lf::assemble::COOMatrix<double> buildM(
-  const std::shared_ptr<lf::uscalfe::FeSpaceLagrangeO1<double>> &fe_space_p) {
+    const std::shared_ptr<lf::uscalfe::FeSpaceLagrangeO1<double>> &fe_space_p) {
     // I. TOOLS AND DATA
     // Pointer to current fe_space and mesh
     std::shared_ptr<const lf::mesh::Mesh> mesh_p(fe_space_p->Mesh());
@@ -24,20 +24,19 @@ lf::assemble::COOMatrix<double> buildM(
     // Matrix in triplet format holding Galerkin matrix, zero initially.
     lf::assemble::COOMatrix<double> M(N_dofs, N_dofs);
     //====================
-    lf ::mesh::utils::CodimMeshDataSet<bool> bd_flags{
-        lf::mesh::utils::flagEntitiesOnBoundary(mesh_p, 1)
-    };
-    //lf::uscalfe::MassEdgeMatrixProvider m_builder(lf::assemble::COOMatrix<double>, mesh_p, bd_flags);
-    auto edges_predicate = [&bd_flags](const lf::mesh::Entity &edge) -> bool {
+    // Set up gamma function
+    auto gamma = lf::mesh::utils::MeshFunctionGlobal([](Eigen::VectorXd){return 1.0;});
+
+    // Set Selector
+    auto bd_flags {lf::mesh::utils::flagEntitiesOnBoundary(mesh_p,1)};
+
+    auto edge_sel = [bd_flags](const lf::mesh::Entity &edge){
         return bd_flags(edge);
     };
-    auto one_fun = [](Eigen::Vector2d x) -> double {
-        return 1.0;
-    };
-    auto eta = lf::mesh::utils::MeshFunctionGlobal(one_fun);
-    lf::uscalfe::MassEdgeMatrixProvider<double,decltype(eta),decltype(edges_predicate)>
-        edgemat_builder(fe_space_p, eta, edges_predicate);
-    lf::assemble::AssembleMatrixLocally(1, dofh, dofh, edgemat_builder, M);
+
+    // Build Matrix M
+    lf::uscalfe::MassEdgeMatrixProvider<double, decltype(gamma), decltype(edge_sel)> M_builder(fe_space_p,gamma,edge_sel);
+    lf::assemble::AssembleMatrixLocally(1,dofh,dofh,M_builder,M);
     //====================
     return M;
 };
@@ -45,7 +44,7 @@ lf::assemble::COOMatrix<double> buildM(
 
 /* SAM_LISTING_BEGIN_2 */
 lf::assemble::COOMatrix<double> buildA(
-  const std::shared_ptr<lf::uscalfe::FeSpaceLagrangeO1<double>> &fe_space_p) {
+    const std::shared_ptr<lf::uscalfe::FeSpaceLagrangeO1<double>> &fe_space_p) {
     // I. TOOLS AND DATA
     // Pointer to current fe_space and mesh
     std::shared_ptr<const lf::mesh::Mesh> mesh_p(fe_space_p->Mesh());
@@ -57,37 +56,19 @@ lf::assemble::COOMatrix<double> buildA(
     // II : ASSEMBLY
     // Matrix in triplet format holding Galerkin matrix, zero initially.
     lf::assemble::COOMatrix<double> A(N_dofs, N_dofs);
-    //====================    
-    auto one_fun = [](Eigen::Vector2d x) -> double {
-        return 1.0+x.norm()*x.norm();
-    };
 
-    auto zero_fun = [](Eigen::Vector2d x) -> double {
-        return 0.;
-    };
-
-    auto alpha = lf::mesh::utils::MeshFunctionGlobal(one_fun);
-    auto gamma = lf::mesh::utils::MeshFunctionGlobal(zero_fun);
-
-    lf::uscalfe::ReactionDiffusionElementMatrixProvider<double, decltype(alpha), decltype(gamma)> 
-        mat_builder(fe_space_p, alpha, gamma);
-    
-    lf::assemble::AssembleMatrixLocally(0, dofh, dofh, mat_builder, A);
-
-
-    /*lf::mesh::utils::CodimMeshDataSet<bool> bd_flags{
-        lf::mesh::utils::flagEntitiesOnBoundary(mesh_p, 1)
-    };
-    //lf::uscalfe::MassEdgeMatrixProvider m_builder(lf::assemble::COOMatrix<double>, mesh_p, bd_flags);
-    auto edges_predicate = [&bd_flags](const lf::mesh::Entity &edge) −> bool { return bd_flags (edge);};
-    auto eta = lf ::mesh:: utils ::MeshFunctionGlobal( [](Eigen::Vector2d x) -> double { return 1.0; });
-    lf::uscalfe::MassEdgeMatrixProvider<double,decltype(eta),decltype(edges_predicate)>
-        edgemat_builder(fe_space_p, eta, edges_predicate);
-    A = lf::assemble::AssembleMatrixLocally(1, dofh, dofh, edgemat_builder, m_builder);
-
-    
-    Eigen::Sparse<double> A_crs = A.makeSparse();*/
     //====================
+    // Set up alpha function
+    auto alpha = lf::mesh::utils::MeshFunctionGlobal([](Eigen::VectorXd x){return 1+x.dot(x);});
+
+    // Set gamma  function
+    auto zero = lf::mesh::utils::MeshFunctionGlobal([](Eigen::VectorXd x){return 0.;});
+
+    // Build Matrix M
+    lf::uscalfe::ReactionDiffusionElementMatrixProvider<double, decltype(alpha), decltype(zero)> A_builder(fe_space_p,alpha,zero);
+    lf::assemble::AssembleMatrixLocally(0,dofh,dofh,A_builder,A);
+    //====================
+
     return A;
 };
 

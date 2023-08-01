@@ -41,13 +41,32 @@ Eigen::Vector2d findSupport(const UniformCubicSpline &f,
  */
 /* SAM_LISTING_BEGIN_6 */
 template <typename FUNCTOR>
-Eigen::VectorXd computeInitVec(const UniformCubicSpline &f, FUNCTOR &&u0,
-                               double h, double T) {
-  Eigen::VectorXd mu0;
-  //====================
-  // Your code goes here
-  //====================
-  return mu0;
+Eigen::VectorXd computeInitVec(const UniformCubicSpline &f, 
+                               FUNCTOR &&u0,
+                               double h, 
+                               double T) {
+    Eigen::VectorXd mu0;
+    //====================
+    // Eigen::Vector2d initsupp;
+    // initsupp << -1,1;
+    // for(unsigned t = 0; t < T; t++){
+    //     Eigen::Vector2d supp = findSupport(f,initsupp,t);
+    //     initsupp(0) *= supp(0)*h;
+    //     initsupp(1) *= supp(1)*h;
+    // }
+    // for(unsigned i = 0; i < initsupp(1)-initsupp(0)+1; i++){
+    //     mu0(i) = u0((i+initsupp(0)-1)*h);
+    // }
+
+    double A = -1.0; // left bound of support
+    double B = 1.0 ; // right bound of support
+    double AT = std::min(A, A-f.derivative(-1.0)*T); 
+    double BT = std::max(B, B + f.derivative(1.0)*T);
+    int m_minus = (int)std::floor(AT / h); int m_plus = (int)std::ceil(BT / h); int N = m_plus-m_minus + 1;
+    Eigen::VectorXd x = Eigen::VectorXd::LinSpaced(N, m_minus*h, m_plus*h); 
+    mu0 = x.unaryExpr(std::forward<FUNCTOR>(u0));
+    //====================
+    return mu0;
 }
 /* SAM_LISTING_END_6 */
 

@@ -29,19 +29,29 @@ namespace WaveABC2D {
  * @param epsilon Equation parameter in [0,1].
  * @param M Number of timesteps.*/
 /* SAM_LISTING_BEGIN_1 */
-Eigen::VectorXd scalarImplicitTimestepping(double epsilon, unsigned int M) {
-  /* PROBLEM SETUP */
-  double step_size = 1.0 / M;  // time step "tau"
-  // Rows contain sequence of solutions states
-  Eigen::MatrixXd x(M + 1, 2);
-  // INITIAL DATA
-  x(0, 0) = 1.0;
-  x(0, 1) = 1.0;
+Eigen::VectorXd scalarImplicitTimestepping(double e, unsigned int M) {
+    /* PROBLEM SETUP */
+    double tau = 1.0 / M;  // time step "tau"
+    // Rows contain sequence of solutions states
+    Eigen::MatrixXd x(M + 1, 2);
+    // INITIAL DATA
+    x(0, 0) = 1.0;
+    x(0, 1) = 1.0;
 
-//====================
-// Your code goes here
-//====================
-  return x.col(1);
+    //====================
+    Eigen::VectorXd b(2);
+    Eigen::MatrixXd A(2,2);
+    A << e+(1-e)*tau/2., tau/2., -tau/2., 1.;
+    for (unsigned i = 1; i < M+1; i++){
+        // Calculate the RHS
+        b(0) = (e-(1-e)*tau/2.)*x(i-1,0)-tau/2.*x(i-1,1);
+        b(1) = tau/2.*x(i-1,0)+x(i-1,1);
+
+        // Calculate the inverse
+        x.row(i) = A.lu().solve(b);
+    }    
+    //====================
+    return x.col(1);
 }  // scalarImplicitTimestepping
 /* SAM_LISTING_END_1 */
 

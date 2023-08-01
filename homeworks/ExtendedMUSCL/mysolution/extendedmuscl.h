@@ -57,11 +57,13 @@ double limiterMC(double mu_left, double mu_center, double mu_right);
 /* SAM_LISTING_BEGIN_1 */
 template <typename FUNCTOR, typename State>
 State sspEvolop(FUNCTOR &&f, State y, double tau) {
-  State y_tau;
-  //====================
-  // Your code goes here
-  //====================
-  return y_tau;
+    State y_tau;
+    //====================
+    auto k1 = y+tau*f(y);
+    auto k2 = 3./4.*y+k1/4.+tau/4.*f(k1);
+    y_tau = 1./3.*y+k2*2./3.+tau*2./3.*f(k2);
+    //====================
+    return y_tau;
 }
 /* SAM_LISTING_END_1 */
 
@@ -78,24 +80,35 @@ State sspEvolop(FUNCTOR &&f, State y, double tau) {
 /* SAM_LISTING_BEGIN_4 */
 template <typename U0_FUNCTOR>
 Eigen::VectorXd solveClaw(U0_FUNCTOR &&u0, double T, unsigned int n) {
-  // Set up spacial mesh and inital data.
-  double a = 0.0;
-  double b = 1.0;
-  double h = (b - a) / n;
-  Eigen::VectorXd x = Eigen::VectorXd::LinSpaced(n, a + 0.5 * h, b - 0.5 * h);
+    // Set up spacial mesh and inital data.
+    double a = 0.0;
+    double b = 1.0;
+    double h = (b - a) / n;
+    Eigen::VectorXd x = Eigen::VectorXd::LinSpaced(n, a + 0.5 * h, b - 0.5 * h);
 
-  // Approximate dual cell averages at t=0
-  Eigen::VectorXd mu = x.unaryExpr(u0);
+    // Approximate dual cell averages at t=0
+    Eigen::VectorXd mu = x.unaryExpr(u0);
 
-  double alpha = mu.minCoeff();  // lower bound for initial data
-  double beta = mu.maxCoeff();   // upper bound for initial data
-  assert(alpha > 0.0 && beta > 0.0);
+    double alpha = mu.minCoeff();  // lower bound for initial data
+    double beta = mu.maxCoeff();   // upper bound for initial data
+    assert(alpha > 0.0 && beta > 0.0);
 
-  //====================
-  // Your code goes here
-  //====================
+    //====================
+    double tau = h / (std::max(std::log(alpha),std::log(beta)));
+    double h_inv = 1. / h;
 
-  return mu;
+    auto semi_discrete_rhs = [h_inv](const Eigen::VectorXd &mu){
+        return -h_inv*slopelimfluxdiffper(mu, &logGodunovFlux, &limiterMC);
+    }
+
+    int N = (int)(T / tau + 0.5);
+
+    for(unsigned i = 0; i < N; i++){
+        mu = sspEvolop(&semi_discrete_rhs, mu, tau);
+    }
+    //====================
+
+    return mu;
 }
 /* SAM_LISTING_END_4 */
 
@@ -117,7 +130,7 @@ void storeMUSCLSolution(const std::string &filename, U0_FUNCTOR &&u0, double T,
 
 /* The function takess two sequences (usually of reals), whose values are read
  * as nodal values on the cell midpoints of an equidistant grid on [0,1].
- * 1-piodic continuation outside [0,1] is assumed. The values on the source grid
+ * 1-piodic continuation outside [0,1ss] is assumed. The values on the source grid
  * are linearly interpolated to the cell midpoints of the fine grid.
  */
 /* SAM_LISTING_BEGIN_5 */
